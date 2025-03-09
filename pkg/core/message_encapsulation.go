@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-//Encapsulation encapsulates a message to a general type(*protobuf.Message)
+// Encapsulation encapsulates a message to a general type(*protobuf.Message)
 func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage any) *protobuf.Message {
 	var data []byte
 	var err error
@@ -34,6 +34,13 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 		data, err = proto.Marshal((payloadMessage).(*protobuf.Sigmsg))
 	case "InputBFT_Result":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.InputBFT_Result))
+
+	case "NoLiveness":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.NoLiveness))
+	case "NL_Response":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.NL_Response))
+	case "NL_Confirm":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.NL_Confirm))
 	}
 
 	if err != nil {
@@ -47,7 +54,7 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 	}
 }
 
-//Decapsulation decapsulates a message to it's original type
+// Decapsulation decapsulates a message to it's original type
 func Decapsulation(messageType string, m *protobuf.Message) any {
 	switch messageType {
 	case "New_View":
@@ -89,6 +96,19 @@ func Decapsulation(messageType string, m *protobuf.Message) any {
 		return &payloadMessage
 	case "InputBFT_Result":
 		var payloadMessage protobuf.InputBFT_Result
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+
+	case "NoLiveness":
+		var payloadMessage protobuf.NoLiveness
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "NL_Response":
+		var payloadMessage protobuf.NL_Response
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "NL_Confirm":
+		var payloadMessage protobuf.NL_Confirm
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 

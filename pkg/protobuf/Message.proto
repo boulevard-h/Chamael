@@ -54,3 +54,25 @@ message InputBFT_Result{
   bytes aggpk = 6;
 }
 
+//Chamael-noLiveness使用的消息类型
+message NoLiveness{
+  uint32 shardID = 1; 
+  uint32 h = 2;
+  bytes a = 3;
+  bytes sig = 4;
+}
+
+message NL_Response{
+  uint32 shardID = 1;
+  uint32 h = 2;
+  bytes a = 3;
+  bytes aggsig = 4;
+  bytes aggpk = 5;
+}
+
+message NL_Confirm{
+  uint32 shardID = 1; 
+  uint32 h = 2;
+  bytes a = 3;
+  bytes sig = 4;
+}

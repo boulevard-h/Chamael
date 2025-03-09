@@ -4,6 +4,8 @@ Go implementation of Kronos
 
 ## 1. Usage
 
+plz place the project directory in the **user's home directory**.
+
 Chamael can be run in 3 ways:
 - Local
 - All nodes in one Docker
