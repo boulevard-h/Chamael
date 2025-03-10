@@ -27,7 +27,7 @@ go run ./cmd/configMaker/configMaker.go -config_path ./cmd/main/config_local.yam
 
 Start all nodes via shell script:
 ``` bash
-./start_all.sh 4 3 1000 1
+./start_all.sh 4 3 1
 ```
 
 
@@ -47,7 +47,7 @@ docker build -t chamael:latest .
 
 Start Docker:
 ``` bash
-docker run -it --rm chamael:latest 4 3 1000 1
+docker run -it --rm chamael:latest 4 3 1
 ```
 
 ### One node in one Docker

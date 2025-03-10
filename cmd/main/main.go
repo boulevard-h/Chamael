@@ -16,18 +16,13 @@ import (
 )
 
 func main() {
-	B, err := strconv.Atoi(os.Args[1])
-	ConfigFile := os.Args[2]
-	Mode := os.Args[3]
+	ConfigFile := os.Args[1]
+	Mode := os.Args[2]
 	var Debug bool
 	if Mode == "1" {
 		Debug = true
 	} else {
 		Debug = false
-	}
-
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	c, err := config.NewHonestConfig(ConfigFile, true)
@@ -43,10 +38,6 @@ func main() {
 	p.InitSendChannel()
 
 	txlength := 32
-
-	if B == 0 {
-		B = c.N
-	}
 
 	isTxnum := int(float64(c.Txnum) * (1 - c.Crate))
 	csTxnum := c.Txnum - isTxnum

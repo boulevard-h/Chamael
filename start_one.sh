@@ -1,30 +1,38 @@
 #!/bin/bash
 
 # Check if parameters are provided
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
-  echo "Usage: $0 <id> <B> <mode> <print_perf>"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "Usage: $0 <id> <mode> <print_perf>"
   exit 1
 fi
 
 id="$1"
-B="$2"
-mode="$3"
-print_perf="$4"
+mode="$2"
+print_perf="$3"
 
 # Directory containing the config files
 config_dir="$HOME/Chamael/configs"
-
-go run ./cmd/txsMaker --id $id --shard_num 3 --tx_num 1000 --Rrate 10
-
-
 config_file="$config_dir/config_$id.yaml"
+
 # Check if the config file exists
 if [ -f "$config_file" ]; then
-  echo "Using config file: $config_file"
-  # Run the Go program with the N and B parameters and the config file in the background
-  go run ./cmd/main "$B" "$config_file" "$mode"
+    echo "Using config file: $config_file"
+    
+    # Read Txnum and Crate parameters from config file and calculate tx_num
+    Txnum=$(grep '^Txnum:' "$config_file" | awk '{print $2}')
+    Crate=$(grep '^Crate:' "$config_file" | awk '{print $2}')
+    TestEpochs=$(grep '^TestEpochs:' "$config_file" | awk '{print $2}')
+    tx_num=$(echo "$Txnum * $Crate * $TestEpochs" | bc -l)
+    tx_num=$(printf "%.0f" "$tx_num")
+    echo "Cross-shard tx_num: $tx_num"
+
+    # Call txsMaker program with tx_num parameter
+    go run ./cmd/txsMaker --id $id --shard_num 3 --tx_num $tx_num --Rrate 10
+
+    # Call main program with config file and mode
+    go run ./cmd/main "$config_file" "$mode"
 else
-  echo "Config file $config_file not found"
+    echo "Config file $config_file not found"
 fi
 
 if [ "$print_perf" -eq 1 ]; then
