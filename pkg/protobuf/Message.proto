@@ -76,3 +76,22 @@ message NL_Confirm{
   bytes a = 3;
   bytes sig = 4;
 }
+
+// Chamael-noSafety使用的消息类型
+message NoSafety{
+  uint32 shardID = 1;
+  uint32 h = 2;
+  bytes A1 = 3;
+  bytes A2 = 4;
+  bytes aggsig1 = 5;
+  bytes aggsig2 = 6;
+  bytes nodes1 = 7;
+  bytes nodes2 = 8;
+}
+
+message NS_Choice{
+  uint32 shardID = 1;
+  uint32 h = 2;
+  bytes AChoice = 3;
+  bytes sig = 4;
+}

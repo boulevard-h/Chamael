@@ -865,6 +865,181 @@ func (x *NL_Confirm) GetSig() []byte {
 	return nil
 }
 
+// Chamael-noSafety使用的消息类型
+type NoSafety struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ShardID uint32 `protobuf:"varint,1,opt,name=shardID,proto3" json:"shardID,omitempty"`
+	H       uint32 `protobuf:"varint,2,opt,name=h,proto3" json:"h,omitempty"`
+	A1      []byte `protobuf:"bytes,3,opt,name=A1,proto3" json:"A1,omitempty"`
+	A2      []byte `protobuf:"bytes,4,opt,name=A2,proto3" json:"A2,omitempty"`
+	Aggsig1 []byte `protobuf:"bytes,5,opt,name=aggsig1,proto3" json:"aggsig1,omitempty"`
+	Aggsig2 []byte `protobuf:"bytes,6,opt,name=aggsig2,proto3" json:"aggsig2,omitempty"`
+	Nodes1  []byte `protobuf:"bytes,7,opt,name=nodes1,proto3" json:"nodes1,omitempty"`
+	Nodes2  []byte `protobuf:"bytes,8,opt,name=nodes2,proto3" json:"nodes2,omitempty"`
+}
+
+func (x *NoSafety) Reset() {
+	*x = NoSafety{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *NoSafety) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoSafety) ProtoMessage() {}
+
+func (x *NoSafety) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoSafety.ProtoReflect.Descriptor instead.
+func (*NoSafety) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *NoSafety) GetShardID() uint32 {
+	if x != nil {
+		return x.ShardID
+	}
+	return 0
+}
+
+func (x *NoSafety) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+func (x *NoSafety) GetA1() []byte {
+	if x != nil {
+		return x.A1
+	}
+	return nil
+}
+
+func (x *NoSafety) GetA2() []byte {
+	if x != nil {
+		return x.A2
+	}
+	return nil
+}
+
+func (x *NoSafety) GetAggsig1() []byte {
+	if x != nil {
+		return x.Aggsig1
+	}
+	return nil
+}
+
+func (x *NoSafety) GetAggsig2() []byte {
+	if x != nil {
+		return x.Aggsig2
+	}
+	return nil
+}
+
+func (x *NoSafety) GetNodes1() []byte {
+	if x != nil {
+		return x.Nodes1
+	}
+	return nil
+}
+
+func (x *NoSafety) GetNodes2() []byte {
+	if x != nil {
+		return x.Nodes2
+	}
+	return nil
+}
+
+type NS_Choice struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ShardID uint32 `protobuf:"varint,1,opt,name=shardID,proto3" json:"shardID,omitempty"`
+	H       uint32 `protobuf:"varint,2,opt,name=h,proto3" json:"h,omitempty"`
+	AChoice []byte `protobuf:"bytes,3,opt,name=AChoice,proto3" json:"AChoice,omitempty"`
+	Sig     []byte `protobuf:"bytes,4,opt,name=sig,proto3" json:"sig,omitempty"`
+}
+
+func (x *NS_Choice) Reset() {
+	*x = NS_Choice{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *NS_Choice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NS_Choice) ProtoMessage() {}
+
+func (x *NS_Choice) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NS_Choice.ProtoReflect.Descriptor instead.
+func (*NS_Choice) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *NS_Choice) GetShardID() uint32 {
+	if x != nil {
+		return x.ShardID
+	}
+	return 0
+}
+
+func (x *NS_Choice) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+func (x *NS_Choice) GetAChoice() []byte {
+	if x != nil {
+		return x.AChoice
+	}
+	return nil
+}
+
+func (x *NS_Choice) GetSig() []byte {
+	if x != nil {
+		return x.Sig
+	}
+	return nil
+}
+
 var File_Message_proto protoreflect.FileDescriptor
 
 var file_Message_proto_rawDesc = []byte{
@@ -927,8 +1102,26 @@ var file_Message_proto_rawDesc = []byte{
 	0x61, 0x72, 0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d,
 	0x52, 0x01, 0x68, 0x12, 0x0c, 0x0a, 0x01, 0x61, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x01,
 	0x61, 0x12, 0x10, 0x0a, 0x03, 0x73, 0x69, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03,
-	0x73, 0x69, 0x67, 0x42, 0x0b, 0x5a, 0x09, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x69, 0x67, 0x22, 0xb6, 0x01, 0x0a, 0x08, 0x4e, 0x6f, 0x53, 0x61, 0x66, 0x65, 0x74, 0x79,
+	0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x01, 0x68, 0x12, 0x0e, 0x0a, 0x02, 0x41, 0x31, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x02, 0x41, 0x31, 0x12, 0x0e, 0x0a, 0x02, 0x41, 0x32, 0x18, 0x04,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x02, 0x41, 0x32, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x67, 0x67, 0x73,
+	0x69, 0x67, 0x31, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x61, 0x67, 0x67, 0x73, 0x69,
+	0x67, 0x31, 0x12, 0x18, 0x0a, 0x07, 0x61, 0x67, 0x67, 0x73, 0x69, 0x67, 0x32, 0x18, 0x06, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x07, 0x61, 0x67, 0x67, 0x73, 0x69, 0x67, 0x32, 0x12, 0x16, 0x0a, 0x06,
+	0x6e, 0x6f, 0x64, 0x65, 0x73, 0x31, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x6e, 0x6f,
+	0x64, 0x65, 0x73, 0x31, 0x12, 0x16, 0x0a, 0x06, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x32, 0x18, 0x08,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x6e, 0x6f, 0x64, 0x65, 0x73, 0x32, 0x22, 0x5f, 0x0a, 0x09,
+	0x4e, 0x53, 0x5f, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x61,
+	0x72, 0x64, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x01,
+	0x68, 0x12, 0x18, 0x0a, 0x07, 0x41, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x07, 0x41, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x73,
+	0x69, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x73, 0x69, 0x67, 0x42, 0x0b, 0x5a,
+	0x09, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -943,7 +1136,7 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_Message_proto_goTypes = []interface{}{
 	(*Message)(nil),         // 0: Message
 	(*New_View)(nil),        // 1: New_View
@@ -959,6 +1152,8 @@ var file_Message_proto_goTypes = []interface{}{
 	(*NoLiveness)(nil),      // 11: NoLiveness
 	(*NL_Response)(nil),     // 12: NL_Response
 	(*NL_Confirm)(nil),      // 13: NL_Confirm
+	(*NoSafety)(nil),        // 14: NoSafety
+	(*NS_Choice)(nil),       // 15: NS_Choice
 }
 var file_Message_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -1142,6 +1337,30 @@ func file_Message_proto_init() {
 				return nil
 			}
 		}
+		file_Message_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*NoSafety); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_Message_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*NS_Choice); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1149,7 +1368,7 @@ func file_Message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_Message_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
