@@ -51,18 +51,18 @@ func (c *NLConfig) ReadNLConfig(ConfigName string, p *party.HonestParty) error {
 	return nil
 }
 
-func NLFinder(p *party.HonestParty, h int, A *big.Int) {
+func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	if p.Debug {
 		fmt.Println("Start NLFinder", p.PID)
 	}
 	suite := bn256.NewSuite()
 	timeStart := time.Now()
 	// Step1: 全局广播NoLiveness消息
-	A_bytes := A.Bytes()
+	A_bytes := nlConfig.A.Bytes()
 	sig, _ := bls.Sign(suite, p.SK, A_bytes)
 	NoLivenessMessage := core.Encapsulation("NoLiveness", utils.Uint32ToBytes(1), p.PID, &protobuf.NoLiveness{
 		ShardID: uint32(p.Snumber),
-		H:       uint32(h),
+		H:       uint32(nlConfig.H),
 		A:       A_bytes,
 		Sig:     sig,
 	})
@@ -87,7 +87,7 @@ func NLFinder(p *party.HonestParty, h int, A *big.Int) {
 
 	NLConfirmMessage := core.Encapsulation("NL_Confirm", utils.Uint32ToBytes(1), p.PID, &protobuf.NL_Confirm{
 		ShardID: uint32(p.Snumber),
-		H:       uint32(h),
+		H:       uint32(nlConfig.H),
 		A:       A_bytes,
 		Sig:     sig,
 	})
@@ -111,12 +111,12 @@ func NLFinder(p *party.HonestParty, h int, A *big.Int) {
 	log.Printf("Duration: %s\n", duration)
 }
 
-func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
+func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 	if p.Debug {
 		fmt.Println("Start NLHelper", p.PID)
 	}
 	suite := bn256.NewSuite()
-	A_bytes := A.Bytes()
+	A_bytes := nlConfig.A.Bytes()
 	timeStart := time.Now()
 	// Step1: 接收f+1条NoLiveness消息，聚合签名，发送NL_Response消息
 	seen := make(map[int]bool)
@@ -130,7 +130,7 @@ func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
 
 		// fmt.Println("Received NoLivenessMessage:", uint32(payload.ShardID), uint32(payload.H), payload.A, payload.Sig)
 
-		if payload.ShardID != uint32(NLShardID) || payload.H != uint32(h) || !bytes.Equal(payload.A, A_bytes) {
+		if payload.ShardID != uint32(nlConfig.NLShardID) || payload.H != uint32(nlConfig.H) || !bytes.Equal(payload.A, A_bytes) {
 			log.Println("Received unexpected NoLiveness message")
 			continue
 		}
@@ -159,8 +159,8 @@ func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
 	aggSig, _ := bls.AggregateSignatures(suite, signatures...)
 	aggPubKey := bls.AggregatePublicKeys(suite, pubkeys...)
 	NLResponseMessage := core.Encapsulation("NL_Response", utils.Uint32ToBytes(1), p.PID, &protobuf.NL_Response{
-		ShardID: uint32(NLShardID),
-		H:       uint32(h),
+		ShardID: uint32(nlConfig.NLShardID),
+		H:       uint32(nlConfig.H),
 		A:       A_bytes,
 		Aggsig:  aggSig,
 		Aggpk:   utils.PointToBytes(aggPubKey),
@@ -168,7 +168,7 @@ func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
 	if p.Debug {
 		fmt.Println("Send NLResponseMessage", p.PID)
 	}
-	p.Shard_Broadcast(NLResponseMessage, uint32(NLShardID))
+	p.Shard_Broadcast(NLResponseMessage, uint32(nlConfig.NLShardID))
 
 	// Step2: 收到f+1条NL_Confirm消息，运行全局BFT
 	seen = make(map[int]bool)
@@ -176,7 +176,7 @@ func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
 		m := <-p.GetMessage("NL_Confirm", utils.Uint32ToBytes(1))
 		payload := (core.Decapsulation("NL_Confirm", m)).(*protobuf.NL_Confirm)
 
-		if payload.ShardID != uint32(NLShardID) || payload.H != uint32(h) || !bytes.Equal(payload.A, A_bytes) {
+		if payload.ShardID != uint32(nlConfig.NLShardID) || payload.H != uint32(nlConfig.H) || !bytes.Equal(payload.A, A_bytes) {
 			log.Println("Received unexpected NL_Confirm message")
 			continue
 		}

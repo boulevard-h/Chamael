@@ -48,9 +48,9 @@ func main() {
 	p.InitSendChannel()
 
 	if p.Snumber == uint32(nlConfig.NLShardID) {
-		bft.NLFinder(p, nlConfig.H, nlConfig.A)
+		bft.NLFinder(p, &nlConfig)
 	} else {
-		bft.NLHelper(p, nlConfig.NLShardID, nlConfig.H, nlConfig.A)
+		bft.NLHelper(p, &nlConfig)
 	}
 
 	time.Sleep(time.Second * 5) // 如果不等待，可能会导致发送卡住，有些节点无法退出

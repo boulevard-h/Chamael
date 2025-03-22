@@ -52,17 +52,17 @@ func (c *RCConfig) ReadRCConfig(ConfigName string, p *party.HonestParty) error {
 	return nil
 }
 
-func RCStarter(p *party.HonestParty, h int, A *big.Int, NewNodes []int) {
+func RCStarter(p *party.HonestParty, rcConfig *RCConfig) {
 	if p.Debug {
 		fmt.Println("Start RCStarter", p.PID)
 	}
 	suite := bn256.NewSuite()
 	// Step1: 全局广播ReConfig消息
-	A_bytes := A.Bytes()
+	A_bytes := rcConfig.A.Bytes()
 	sig, _ := bls.Sign(suite, p.SK, A_bytes)
 	ReConfigMessage := core.Encapsulation("ReConfig", utils.Uint32ToBytes(1), p.PID, &protobuf.ReConfig{
 		ShardID: uint32(p.Snumber),
-		H:       uint32(h),
+		H:       uint32(rcConfig.H),
 		A:       A_bytes,
 		Sig:     sig,
 	})
@@ -72,15 +72,15 @@ func RCStarter(p *party.HonestParty, h int, A *big.Int, NewNodes []int) {
 	p.Broadcast(ReConfigMessage)
 
 	// RCStarter 在发送完 ReConfig 消息以后，照样要调用 RCHelper 函数参与全局 N2N
-	RCHelper(p, int(p.Snumber), h, A, NewNodes)
+	RCHelper(p, rcConfig)
 }
 
-func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes []int) {
+func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 	if p.Debug {
 		fmt.Println("Start RCHelper", p.PID)
 	}
 	suite := bn256.NewSuite()
-	A_bytes := A.Bytes()
+	A_bytes := rcConfig.A.Bytes()
 	timeStart := time.Now()
 	// Step1: 接收2f+1条ReConfig消息，全局广播RC_CheckOK消息
 	seen := make(map[int]bool)
@@ -90,7 +90,7 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 		m := <-p.GetMessage("ReConfig", utils.Uint32ToBytes(1))
 		payload := (core.Decapsulation("ReConfig", m)).(*protobuf.ReConfig)
 
-		if payload.ShardID != uint32(RCShardID) || payload.H != uint32(h) || !bytes.Equal(payload.A, A_bytes) {
+		if payload.ShardID != uint32(rcConfig.RCShardID) || payload.H != uint32(rcConfig.H) || !bytes.Equal(payload.A, A_bytes) {
 			log.Println("Received unexpected ReConfig message")
 			continue
 		}
@@ -114,16 +114,16 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 		}
 	}
 
-	NewNodes_bm := bitset.New(uint(len(NewNodes)))
-	for _, node := range NewNodes {
+	NewNodes_bm := bitset.New(uint(len(rcConfig.NewNodes)))
+	for _, node := range rcConfig.NewNodes {
 		NewNodes_bm.Set(uint(node))
 	}
 	NewNodes_bytes, _ := NewNodes_bm.MarshalBinary()
 	sig, _ := bls.Sign(suite, p.SK, NewNodes_bytes)
 
 	RC_CheckOKMessage := core.Encapsulation("RC_CheckOK", utils.Uint32ToBytes(1), p.PID, &protobuf.RC_CheckOK{
-		ShardID:  uint32(RCShardID),
-		H:        uint32(h),
+		ShardID:  uint32(rcConfig.RCShardID),
+		H:        uint32(rcConfig.H),
 		A:        A_bytes,
 		NewNodes: NewNodes_bytes,
 		Sig:      sig,
@@ -143,7 +143,7 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 		m := <-p.GetMessage("RC_CheckOK", utils.Uint32ToBytes(1))
 		payload := (core.Decapsulation("RC_CheckOK", m)).(*protobuf.RC_CheckOK)
 
-		if payload.ShardID != uint32(RCShardID) || payload.H != uint32(h) || !bytes.Equal(payload.A, A_bytes) {
+		if payload.ShardID != uint32(rcConfig.RCShardID) || payload.H != uint32(rcConfig.H) || !bytes.Equal(payload.A, A_bytes) {
 			log.Println("Received unexpected RC_CheckOK message")
 			continue
 		}
@@ -168,7 +168,7 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 	}
 
 	RC_NewEpochMessage := core.Encapsulation("RC_NewEpoch", utils.Uint32ToBytes(1), p.PID, &protobuf.RC_NewEpoch{
-		ShardID:  uint32(RCShardID),
+		ShardID:  uint32(rcConfig.RCShardID),
 		NewNodes: NewNodes_bytes,
 		Sig:      sig,
 	})
@@ -185,7 +185,7 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 		m := <-p.GetMessage("RC_NewEpoch", utils.Uint32ToBytes(1))
 		payload := (core.Decapsulation("RC_NewEpoch", m)).(*protobuf.RC_NewEpoch)
 
-		if payload.ShardID != uint32(RCShardID) {
+		if payload.ShardID != uint32(rcConfig.RCShardID) {
 			log.Println("Received unexpected RC_NewEpoch message")
 			continue
 		}
@@ -211,7 +211,7 @@ func RCHelper(p *party.HonestParty, RCShardID int, h int, A *big.Int, NewNodes [
 
 	timeEnd := time.Now()
 	// 输出结果
-	log.Println("ReConfig Result: NewNodes =", NewNodes)
+	log.Println("ReConfig Result: NewNodes =", rcConfig.NewNodes)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
 }

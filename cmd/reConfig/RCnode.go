@@ -48,9 +48,9 @@ func main() {
 	p.InitSendChannel()
 
 	if p.Snumber == uint32(rcConfig.RCShardID) {
-		bft.RCStarter(p, rcConfig.H, rcConfig.A, rcConfig.NewNodes)
+		bft.RCStarter(p, &rcConfig)
 	} else {
-		bft.RCHelper(p, rcConfig.RCShardID, rcConfig.H, rcConfig.A, rcConfig.NewNodes)
+		bft.RCHelper(p, &rcConfig)
 	}
 
 	time.Sleep(time.Second * 5) // 如果不等待，可能会导致发送卡住，有些节点无法退出
