@@ -22,6 +22,7 @@ import (
 
 type NSConfig struct {
 	NSShard int      `yaml:"NSShard"`
+	H       int      `yaml:"H"`
 	A1      *big.Int `yaml:"A1"`
 	A2      *big.Int `yaml:"A2"`
 	Aggsig1 string   `yaml:"aggsig1"`
@@ -44,7 +45,7 @@ func (c *NSConfig) ReadNSConfig(ConfigName string, p *party.HonestParty) error {
 	return nil
 }
 
-func CheckSigs(p *party.HonestParty, NSShard int, A1_bytes, A2_bytes, aggsig1, aggsig2 []byte, nodes1_bm, nodes2_bm *bitset.BitSet) {
+func CheckSigs(p *party.HonestParty, NSShard int, H uint32, A1_bytes, A2_bytes, aggsig1, aggsig2 []byte, nodes1_bm, nodes2_bm *bitset.BitSet) {
 	suite := bn256.NewSuite()
 
 	var pubkeys1 []kyber.Point
@@ -60,8 +61,8 @@ func CheckSigs(p *party.HonestParty, NSShard int, A1_bytes, A2_bytes, aggsig1, a
 	aggpubkey1 := bls.AggregatePublicKeys(suite, pubkeys1...)
 	aggpubkey2 := bls.AggregatePublicKeys(suite, pubkeys2...)
 
-	valid_err1 := bls.Verify(suite, aggpubkey1, A1_bytes, aggsig1)
-	valid_err2 := bls.Verify(suite, aggpubkey2, A2_bytes, aggsig2)
+	valid_err1 := bls.Verify(suite, aggpubkey1, append(utils.Uint32ToBytes(H), A1_bytes...), aggsig1)
+	valid_err2 := bls.Verify(suite, aggpubkey2, append(utils.Uint32ToBytes(H), A2_bytes...), aggsig2)
 	if valid_err1 != nil || valid_err2 != nil {
 		fmt.Println("Sign-Verify-Failed", p.PID)
 		os.Exit(1)
@@ -78,7 +79,7 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	suite := bn256.NewSuite()
 
 	// read data from config
-	h := 10
+	h := NSConfig.H
 	A1_bytes := NSConfig.A1.Bytes()
 	A2_bytes := NSConfig.A2.Bytes()
 	aggsig1, _ := base64.StdEncoding.DecodeString(NSConfig.Aggsig1)
@@ -94,7 +95,7 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	}
 
 	// self-check first
-	CheckSigs(p, NSConfig.NSShard, A1_bytes, A2_bytes, aggsig1, aggsig2, nodes1_bm, nodes2_bm)
+	CheckSigs(p, NSConfig.NSShard, uint32(h), A1_bytes, A2_bytes, aggsig1, aggsig2, nodes1_bm, nodes2_bm)
 
 	timeStart := time.Now()
 	// step1: global broadcast NoSafety message
@@ -114,7 +115,8 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	p.Broadcast(NoSafetyMessage)
 
 	// step2: global broadcast NSChoice message
-	sig, _ := bls.Sign(suite, p.SK, A1_bytes)
+	// 对 H|A1 进行签名
+	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(h)), A1_bytes...))
 	NSChoiceMessage := core.Encapsulation("NS_Choice", utils.Uint32ToBytes(1), p.PID, &protobuf.NS_Choice{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(h),
@@ -154,10 +156,11 @@ func NSHelperIntra(p *party.HonestParty) {
 	nodes1_bm.UnmarshalBinary(payload.Nodes1)
 	nodes2_bm.UnmarshalBinary(payload.Nodes2)
 
-	CheckSigs(p, int(payload.ShardID), payload.A1, payload.A2, payload.Aggsig1, payload.Aggsig2, &nodes1_bm, &nodes2_bm)
+	CheckSigs(p, int(payload.ShardID), uint32(payload.H), payload.A1, payload.A2, payload.Aggsig1, payload.Aggsig2, &nodes1_bm, &nodes2_bm)
 
 	// step2: global broadcast NSChoice message
-	sig, _ := bls.Sign(suite, p.SK, payload.A1)
+	// 对 H|A1 进行签名
+	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(payload.H)), payload.A1...))
 	NSChoiceMessage := core.Encapsulation("NS_Choice", utils.Uint32ToBytes(1), p.PID, &protobuf.NS_Choice{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(payload.H),
@@ -202,7 +205,7 @@ func NSHelperCross(p *party.HonestParty) {
 	nodes1_bm.UnmarshalBinary(payload.Nodes1)
 	nodes2_bm.UnmarshalBinary(payload.Nodes2)
 
-	CheckSigs(p, int(payload.ShardID), payload.A1, payload.A2, payload.Aggsig1, payload.Aggsig2, &nodes1_bm, &nodes2_bm)
+	CheckSigs(p, int(payload.ShardID), uint32(payload.H), payload.A1, payload.A2, payload.Aggsig1, payload.Aggsig2, &nodes1_bm, &nodes2_bm)
 
 	// step2: receive for f+1 NSChoice messages
 	seen := make(map[int]bool)
@@ -217,7 +220,7 @@ func NSHelperCross(p *party.HonestParty) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], payload.AChoice, payload.Sig)
+		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.AChoice...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NS_Choice message", err)
 			continue

@@ -5,6 +5,7 @@ import (
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
 	"Chamael/pkg/crypto"
+	"Chamael/pkg/utils"
 	"encoding/base64"
 	"fmt"
 	"math/rand"
@@ -95,6 +96,7 @@ func main() {
 		ps = append(ps, *party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, true))
 	}
 
+	H := 10
 	// 构造两个不同的累加器
 	TX1 := "Dummy TX: 1234ABCD"
 	TX2 := "Dummy TX: 5678EEFF"
@@ -117,7 +119,8 @@ func main() {
 	var pubkeys2 []kyber.Point
 	for _, node := range Nodes1 {
 		p := ps[node]
-		sig, err := bls.Sign(suite, p.SK, acc1_bytes)
+		// 对 H|A1 进行签名
+		sig, err := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(H)), acc1_bytes...))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -127,7 +130,8 @@ func main() {
 	}
 	for _, node := range Nodes2 {
 		p := ps[node]
-		sig, err := bls.Sign(suite, p.SK, acc2_bytes)
+		// 对 H|A2 进行签名
+		sig, err := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(H)), acc2_bytes...))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -143,8 +147,8 @@ func main() {
 	aggpubkey2 := bls.AggregatePublicKeys(suite, pubkeys2...)
 
 	// 验证签名
-	valid_err1 := bls.Verify(suite, aggpubkey1, acc1_bytes, aggsig1)
-	valid_err2 := bls.Verify(suite, aggpubkey2, acc2_bytes, aggsig2)
+	valid_err1 := bls.Verify(suite, aggpubkey1, append(utils.Uint32ToBytes(uint32(H)), acc1_bytes...), aggsig1)
+	valid_err2 := bls.Verify(suite, aggpubkey2, append(utils.Uint32ToBytes(uint32(H)), acc2_bytes...), aggsig2)
 	if valid_err1 != nil || valid_err2 != nil {
 		fmt.Println("Invalid signature")
 		os.Exit(1)
@@ -163,6 +167,7 @@ func main() {
 	// 使用 gopkg.in/yaml.v2 库生成 YAML 内容
 	data := bft.NSConfig{
 		NSShard: NSShard,
+		H:       H,
 		A1:      acc1,
 		A2:      acc2,
 		Aggsig1: encodedAggsig1,

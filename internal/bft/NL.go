@@ -59,7 +59,8 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	timeStart := time.Now()
 	// Step1: 全局广播NoLiveness消息
 	A_bytes := nlConfig.A.Bytes()
-	sig, _ := bls.Sign(suite, p.SK, A_bytes)
+	// 对 H|A 进行签名
+	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(nlConfig.H)), A_bytes...))
 	NoLivenessMessage := core.Encapsulation("NoLiveness", utils.Uint32ToBytes(1), p.PID, &protobuf.NoLiveness{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(nlConfig.H),
@@ -79,7 +80,7 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	}
 	payload := (core.Decapsulation("NL_Response", NLResponseMessage)).(*protobuf.NL_Response)
 
-	err := bls.Verify(suite, utils.BytesToPoint(payload.Aggpk), A_bytes, payload.Aggsig)
+	err := bls.Verify(suite, utils.BytesToPoint(payload.Aggpk), append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Aggsig)
 	if err != nil {
 		log.Println("invalid signature of NL_Response message", err)
 		return
@@ -135,7 +136,7 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], payload.A, payload.Sig)
+		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NoLiveness message", err)
 			continue
@@ -181,7 +182,7 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], payload.A, payload.Sig)
+		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.A...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NL_Confirm message", err)
 			continue
