@@ -4,6 +4,7 @@ import (
 	"Chamael/internal/bft"
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
+	"Chamael/pkg/crypto"
 	"encoding/base64"
 	"fmt"
 	"math/rand"
@@ -94,10 +95,14 @@ func main() {
 		ps = append(ps, *party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, true))
 	}
 
-	A1 := "1234ABCD"
-	A2 := "6789EEFF"
-	A1_bytes, _ := base64.StdEncoding.DecodeString(A1)
-	A2_bytes, _ := base64.StdEncoding.DecodeString(A2)
+	// 构造两个不同的累加器
+	TX1 := "Dummy TX: 1234ABCD"
+	TX2 := "Dummy TX: 5678EEFF"
+	acc_setup := crypto.TrustedSetup()
+	acc1 := crypto.FastAcc([]string{TX1}, crypto.HashToPrimeFromSha256, acc_setup)
+	acc2 := crypto.FastAcc([]string{TX2}, crypto.HashToPrimeFromSha256, acc_setup)
+	acc1_bytes := acc1.Bytes()
+	acc2_bytes := acc2.Bytes()
 
 	// 随机选择两组 2F+1 节点
 	Nodes1, Nodes2 := SelectNodes(N, F)
@@ -112,7 +117,7 @@ func main() {
 	var pubkeys2 []kyber.Point
 	for _, node := range Nodes1 {
 		p := ps[node]
-		sig, err := bls.Sign(suite, p.SK, A1_bytes)
+		sig, err := bls.Sign(suite, p.SK, acc1_bytes)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -122,7 +127,7 @@ func main() {
 	}
 	for _, node := range Nodes2 {
 		p := ps[node]
-		sig, err := bls.Sign(suite, p.SK, A2_bytes)
+		sig, err := bls.Sign(suite, p.SK, acc2_bytes)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -138,8 +143,8 @@ func main() {
 	aggpubkey2 := bls.AggregatePublicKeys(suite, pubkeys2...)
 
 	// 验证签名
-	valid_err1 := bls.Verify(suite, aggpubkey1, A1_bytes, aggsig1)
-	valid_err2 := bls.Verify(suite, aggpubkey2, A2_bytes, aggsig2)
+	valid_err1 := bls.Verify(suite, aggpubkey1, acc1_bytes, aggsig1)
+	valid_err2 := bls.Verify(suite, aggpubkey2, acc2_bytes, aggsig2)
 	if valid_err1 != nil || valid_err2 != nil {
 		fmt.Println("Invalid signature")
 		os.Exit(1)
@@ -158,8 +163,8 @@ func main() {
 	// 使用 gopkg.in/yaml.v2 库生成 YAML 内容
 	data := bft.NSConfig{
 		NSShard: NSShard,
-		A1:      A1,
-		A2:      A2,
+		A1:      acc1,
+		A2:      acc2,
 		Aggsig1: encodedAggsig1,
 		Aggsig2: encodedAggsig2,
 		Nodes1:  Nodes1,

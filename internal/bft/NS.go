@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"time"
 
@@ -20,13 +21,13 @@ import (
 )
 
 type NSConfig struct {
-	NSShard int    `yaml:"NSShard"`
-	A1      string `yaml:"A1"`
-	A2      string `yaml:"A2"`
-	Aggsig1 string `yaml:"aggsig1"`
-	Aggsig2 string `yaml:"aggsig2"`
-	Nodes1  []int  `yaml:"Nodes1"`
-	Nodes2  []int  `yaml:"Nodes2"`
+	NSShard int      `yaml:"NSShard"`
+	A1      *big.Int `yaml:"A1"`
+	A2      *big.Int `yaml:"A2"`
+	Aggsig1 string   `yaml:"aggsig1"`
+	Aggsig2 string   `yaml:"aggsig2"`
+	Nodes1  []int    `yaml:"Nodes1"`
+	Nodes2  []int    `yaml:"Nodes2"`
 }
 
 func (c *NSConfig) ReadNSConfig(ConfigName string, p *party.HonestParty) error {
@@ -78,8 +79,8 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 
 	// read data from config
 	h := 10
-	A1_bytes, _ := base64.StdEncoding.DecodeString(NSConfig.A1)
-	A2_bytes, _ := base64.StdEncoding.DecodeString(NSConfig.A2)
+	A1_bytes := NSConfig.A1.Bytes()
+	A2_bytes := NSConfig.A2.Bytes()
 	aggsig1, _ := base64.StdEncoding.DecodeString(NSConfig.Aggsig1)
 	aggsig2, _ := base64.StdEncoding.DecodeString(NSConfig.Aggsig2)
 
@@ -127,7 +128,7 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	receiveChannel := make(chan []string, 1024)
 	e := uint32(1)
 	intersection := nodes1_bm.Intersection(nodes2_bm)
-	input_str := "<NS BadNodes " + intersection.String() + " Choice " + base64.StdEncoding.EncodeToString(A1_bytes) + ">"
+	input_str := "<NS BadNodes " + intersection.String() + " Choice " + NSConfig.A1.String() + ">"
 	inputChannel <- []string{input_str}
 
 	fmt.Println("Enter HotStuffProcess", p.PID)
@@ -170,7 +171,9 @@ func NSHelperIntra(p *party.HonestParty) {
 	receiveChannel := make(chan []string, 1024)
 	e := uint32(1)
 	intersection := nodes1_bm.Intersection(&nodes2_bm)
-	input_str := "<NS BadNodes " + intersection.String() + " Choice " + base64.StdEncoding.EncodeToString(payload.A1) + ">"
+	// 把 payload.A1 转化为 big.Int
+	A1_big := new(big.Int).SetBytes(payload.A1)
+	input_str := "<NS BadNodes " + intersection.String() + " Choice " + A1_big.String() + ">"
 	inputChannel <- []string{input_str}
 
 	fmt.Println("Enter HotStuffProcess", p.PID)
@@ -193,7 +196,8 @@ func NSHelperCross(p *party.HonestParty) {
 	payload := (core.Decapsulation("NoSafety", m)).(*protobuf.NoSafety)
 	H := payload.H
 	ShardID := payload.ShardID
-	AChoice := base64.StdEncoding.EncodeToString(payload.A1)
+	A1_big := new(big.Int).SetBytes(payload.A1)
+	AChoice := A1_big.String()
 	var nodes1_bm, nodes2_bm bitset.BitSet
 	nodes1_bm.UnmarshalBinary(payload.Nodes1)
 	nodes2_bm.UnmarshalBinary(payload.Nodes2)

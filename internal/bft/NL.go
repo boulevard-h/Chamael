@@ -6,11 +6,11 @@ import (
 	"Chamael/pkg/protobuf"
 	"Chamael/pkg/utils"
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"time"
 
 	"go.dedis.ch/kyber/v3"
@@ -20,9 +20,9 @@ import (
 )
 
 type NLConfig struct {
-	NLShardID int    `yaml:"NLShardID"`
-	H         int    `yaml:"h"`
-	A         string `yaml:"A"`
+	NLShardID int      `yaml:"NLShardID"`
+	H         int      `yaml:"h"`
+	A         *big.Int `yaml:"A"`
 }
 
 func (c *NLConfig) ReadNLConfig(ConfigName string, p *party.HonestParty) error {
@@ -44,21 +44,21 @@ func (c *NLConfig) ReadNLConfig(ConfigName string, p *party.HonestParty) error {
 		return errors.New("H is negative")
 	}
 
-	if c.A == "" {
+	if c.A == nil {
 		return errors.New("A is empty")
 	}
 
 	return nil
 }
 
-func NLFinder(p *party.HonestParty, h int, A string) {
+func NLFinder(p *party.HonestParty, h int, A *big.Int) {
 	if p.Debug {
 		fmt.Println("Start NLFinder", p.PID)
 	}
 	suite := bn256.NewSuite()
 	timeStart := time.Now()
 	// Step1: 全局广播NoLiveness消息
-	A_bytes, _ := base64.StdEncoding.DecodeString(A)
+	A_bytes := A.Bytes()
 	sig, _ := bls.Sign(suite, p.SK, A_bytes)
 	NoLivenessMessage := core.Encapsulation("NoLiveness", utils.Uint32ToBytes(1), p.PID, &protobuf.NoLiveness{
 		ShardID: uint32(p.Snumber),
@@ -111,12 +111,12 @@ func NLFinder(p *party.HonestParty, h int, A string) {
 	log.Printf("Duration: %s\n", duration)
 }
 
-func NLHelper(p *party.HonestParty, NLShardID int, h int, A string) {
+func NLHelper(p *party.HonestParty, NLShardID int, h int, A *big.Int) {
 	if p.Debug {
 		fmt.Println("Start NLHelper", p.PID)
 	}
 	suite := bn256.NewSuite()
-	A_bytes, _ := base64.StdEncoding.DecodeString(A)
+	A_bytes := A.Bytes()
 	timeStart := time.Now()
 	// Step1: 接收f+1条NoLiveness消息，聚合签名，发送NL_Response消息
 	seen := make(map[int]bool)
