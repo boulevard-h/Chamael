@@ -95,3 +95,25 @@ message NS_Choice{
   bytes AChoice = 3;
   bytes sig = 4;
 }
+
+// Chamael-reconfig使用的消息类型
+message ReConfig{
+  uint32 shardID = 1;
+  uint32 h = 2;
+  bytes A = 3;
+  bytes sig = 4;
+}
+
+message RC_CheckOK {
+  uint32 shardID = 1;
+  uint32 h = 2;
+  bytes A = 3;
+  bytes newNodes = 4;
+  bytes sig = 5;
+}
+
+message RC_NewEpoch{
+  uint32 shardID = 1;
+  bytes newNodes = 2;
+  bytes sig = 3;
+}

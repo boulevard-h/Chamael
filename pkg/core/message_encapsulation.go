@@ -46,6 +46,14 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 		data, err = proto.Marshal((payloadMessage).(*protobuf.NoSafety))
 	case "NS_Choice":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.NS_Choice))
+
+	case "ReConfig":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.ReConfig))
+	case "RC_CheckOK":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.RC_CheckOK))
+	case "RC_NewEpoch":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.RC_NewEpoch))
+
 	}
 
 	if err != nil {
@@ -123,6 +131,19 @@ func Decapsulation(messageType string, m *protobuf.Message) any {
 		return &payloadMessage
 	case "NS_Choice":
 		var payloadMessage protobuf.NS_Choice
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+
+	case "ReConfig":
+		var payloadMessage protobuf.ReConfig
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "RC_CheckOK":
+		var payloadMessage protobuf.RC_CheckOK
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "RC_NewEpoch":
+		var payloadMessage protobuf.RC_NewEpoch
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 

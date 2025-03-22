@@ -1040,6 +1040,220 @@ func (x *NS_Choice) GetSig() []byte {
 	return nil
 }
 
+// Chamael-reconfig使用的消息类型
+type ReConfig struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ShardID uint32 `protobuf:"varint,1,opt,name=shardID,proto3" json:"shardID,omitempty"`
+	H       uint32 `protobuf:"varint,2,opt,name=h,proto3" json:"h,omitempty"`
+	A       []byte `protobuf:"bytes,3,opt,name=A,proto3" json:"A,omitempty"`
+	Sig     []byte `protobuf:"bytes,4,opt,name=sig,proto3" json:"sig,omitempty"`
+}
+
+func (x *ReConfig) Reset() {
+	*x = ReConfig{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ReConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReConfig) ProtoMessage() {}
+
+func (x *ReConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReConfig.ProtoReflect.Descriptor instead.
+func (*ReConfig) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ReConfig) GetShardID() uint32 {
+	if x != nil {
+		return x.ShardID
+	}
+	return 0
+}
+
+func (x *ReConfig) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+func (x *ReConfig) GetA() []byte {
+	if x != nil {
+		return x.A
+	}
+	return nil
+}
+
+func (x *ReConfig) GetSig() []byte {
+	if x != nil {
+		return x.Sig
+	}
+	return nil
+}
+
+type RC_CheckOK struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ShardID  uint32 `protobuf:"varint,1,opt,name=shardID,proto3" json:"shardID,omitempty"`
+	H        uint32 `protobuf:"varint,2,opt,name=h,proto3" json:"h,omitempty"`
+	A        []byte `protobuf:"bytes,3,opt,name=A,proto3" json:"A,omitempty"`
+	NewNodes []byte `protobuf:"bytes,4,opt,name=newNodes,proto3" json:"newNodes,omitempty"`
+	Sig      []byte `protobuf:"bytes,5,opt,name=sig,proto3" json:"sig,omitempty"`
+}
+
+func (x *RC_CheckOK) Reset() {
+	*x = RC_CheckOK{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RC_CheckOK) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RC_CheckOK) ProtoMessage() {}
+
+func (x *RC_CheckOK) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RC_CheckOK.ProtoReflect.Descriptor instead.
+func (*RC_CheckOK) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RC_CheckOK) GetShardID() uint32 {
+	if x != nil {
+		return x.ShardID
+	}
+	return 0
+}
+
+func (x *RC_CheckOK) GetH() uint32 {
+	if x != nil {
+		return x.H
+	}
+	return 0
+}
+
+func (x *RC_CheckOK) GetA() []byte {
+	if x != nil {
+		return x.A
+	}
+	return nil
+}
+
+func (x *RC_CheckOK) GetNewNodes() []byte {
+	if x != nil {
+		return x.NewNodes
+	}
+	return nil
+}
+
+func (x *RC_CheckOK) GetSig() []byte {
+	if x != nil {
+		return x.Sig
+	}
+	return nil
+}
+
+type RC_NewEpoch struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ShardID  uint32 `protobuf:"varint,1,opt,name=shardID,proto3" json:"shardID,omitempty"`
+	NewNodes []byte `protobuf:"bytes,2,opt,name=newNodes,proto3" json:"newNodes,omitempty"`
+	Sig      []byte `protobuf:"bytes,3,opt,name=sig,proto3" json:"sig,omitempty"`
+}
+
+func (x *RC_NewEpoch) Reset() {
+	*x = RC_NewEpoch{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_Message_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RC_NewEpoch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RC_NewEpoch) ProtoMessage() {}
+
+func (x *RC_NewEpoch) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RC_NewEpoch.ProtoReflect.Descriptor instead.
+func (*RC_NewEpoch) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RC_NewEpoch) GetShardID() uint32 {
+	if x != nil {
+		return x.ShardID
+	}
+	return 0
+}
+
+func (x *RC_NewEpoch) GetNewNodes() []byte {
+	if x != nil {
+		return x.NewNodes
+	}
+	return nil
+}
+
+func (x *RC_NewEpoch) GetSig() []byte {
+	if x != nil {
+		return x.Sig
+	}
+	return nil
+}
+
 var File_Message_proto protoreflect.FileDescriptor
 
 var file_Message_proto_rawDesc = []byte{
@@ -1119,9 +1333,26 @@ var file_Message_proto_rawDesc = []byte{
 	0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x01,
 	0x68, 0x12, 0x18, 0x0a, 0x07, 0x41, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01,
 	0x28, 0x0c, 0x52, 0x07, 0x41, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x10, 0x0a, 0x03, 0x73,
-	0x69, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x73, 0x69, 0x67, 0x42, 0x0b, 0x5a,
-	0x09, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x33,
+	0x69, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x73, 0x69, 0x67, 0x22, 0x52, 0x0a,
+	0x08, 0x52, 0x65, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x61,
+	0x72, 0x64, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x01,
+	0x68, 0x12, 0x0c, 0x0a, 0x01, 0x41, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x01, 0x41, 0x12,
+	0x10, 0x0a, 0x03, 0x73, 0x69, 0x67, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x73, 0x69,
+	0x67, 0x22, 0x70, 0x0a, 0x0a, 0x52, 0x43, 0x5f, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x4f, 0x4b, 0x12,
+	0x18, 0x0a, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d,
+	0x52, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x12, 0x0c, 0x0a, 0x01, 0x68, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x01, 0x68, 0x12, 0x0c, 0x0a, 0x01, 0x41, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x01, 0x41, 0x12, 0x1a, 0x0a, 0x08, 0x6e, 0x65, 0x77, 0x4e, 0x6f, 0x64, 0x65,
+	0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08, 0x6e, 0x65, 0x77, 0x4e, 0x6f, 0x64, 0x65,
+	0x73, 0x12, 0x10, 0x0a, 0x03, 0x73, 0x69, 0x67, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03,
+	0x73, 0x69, 0x67, 0x22, 0x55, 0x0a, 0x0b, 0x52, 0x43, 0x5f, 0x4e, 0x65, 0x77, 0x45, 0x70, 0x6f,
+	0x63, 0x68, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0d, 0x52, 0x07, 0x73, 0x68, 0x61, 0x72, 0x64, 0x49, 0x44, 0x12, 0x1a, 0x0a, 0x08,
+	0x6e, 0x65, 0x77, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08,
+	0x6e, 0x65, 0x77, 0x4e, 0x6f, 0x64, 0x65, 0x73, 0x12, 0x10, 0x0a, 0x03, 0x73, 0x69, 0x67, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x73, 0x69, 0x67, 0x42, 0x0b, 0x5a, 0x09, 0x2f, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1136,7 +1367,7 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_Message_proto_goTypes = []interface{}{
 	(*Message)(nil),         // 0: Message
 	(*New_View)(nil),        // 1: New_View
@@ -1154,6 +1385,9 @@ var file_Message_proto_goTypes = []interface{}{
 	(*NL_Confirm)(nil),      // 13: NL_Confirm
 	(*NoSafety)(nil),        // 14: NoSafety
 	(*NS_Choice)(nil),       // 15: NS_Choice
+	(*ReConfig)(nil),        // 16: ReConfig
+	(*RC_CheckOK)(nil),      // 17: RC_CheckOK
+	(*RC_NewEpoch)(nil),     // 18: RC_NewEpoch
 }
 var file_Message_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -1361,6 +1595,42 @@ func file_Message_proto_init() {
 				return nil
 			}
 		}
+		file_Message_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ReConfig); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_Message_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RC_CheckOK); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_Message_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RC_NewEpoch); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1368,7 +1638,7 @@ func file_Message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_Message_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
