@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"sync"
 
@@ -24,6 +25,7 @@ type HonestParty struct {
 	portList          []string
 	sendChannels      []chan *protobuf.Message
 	dispatcheChannels *sync.Map
+	Acc               *big.Int // 交易累加器
 	Debug             bool
 
 	PK []kyber.Point

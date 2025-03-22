@@ -141,6 +141,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 	var TXsInformChannel = make(chan []string, 1024)
 	var InputResultTobeDoneChannel = make(chan []string, 1024)
 	suite := bn256.NewSuite()
+	acc_setup := crypto.TrustedSetup()
 	timeChannel <- time.Now()
 	for e := uint32(1); e <= uint32(epoch); e++ {
 		var txs_in []string            //放入片内共识的交易整体
@@ -196,8 +197,15 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		//对于片内交易和输出分片为自己的交易,直接输出,作为吞吐量计算
 		outputChannel <- txs_itx2
 		outputChannel <- txs_ctx2[int(p.Snumber)]
-		//fmt.Println(txs_ctx2[int(p.Snumber)])
-		//fmt.Println("\n\n\n\n\n\n\n")
+
+		// 更新累加器
+		// 合并 txs_ctx2[int(p.Snumber)] 和 txs_itx2
+		txs_ctx2[int(p.Snumber)] = append(txs_ctx2[int(p.Snumber)], txs_itx2...)
+		// 调用 FastAcc 快速计算累加器
+		acc := crypto.FastAcc(txs_ctx2[int(p.Snumber)], crypto.HashToPrimeFromSha256, acc_setup)
+		p.Acc = acc
+
+		// 清空 txs_ctx2[int(p.Snumber)]
 		txs_ctx2[int(p.Snumber)] = nil
 
 		//对于跨片交易,建立默克尔树,并对树根签名
