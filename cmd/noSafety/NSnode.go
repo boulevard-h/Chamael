@@ -4,6 +4,7 @@ import (
 	"Chamael/internal/bft"
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
+	"Chamael/pkg/utils/logger"
 	"log"
 	"time"
 
@@ -56,5 +57,7 @@ func main() {
 	}
 
 	time.Sleep(time.Second * 5) // 如果不等待，可能会导致发送卡住，有些节点无法退出
-
+	if p.Debug {
+		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
+	}
 }
