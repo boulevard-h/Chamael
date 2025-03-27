@@ -118,3 +118,20 @@ func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeC
 	}
 
 }
+
+func WriteToPerformanceLog(p party.HonestParty, path string, str string) {
+	// 打开日志文件
+	logFilePath := fmt.Sprintf("%s(Performance)node%d", path, p.PID)
+	file, err := os.Create(logFilePath)
+	if err != nil {
+		fmt.Printf("Failed to create log file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	// 写入 str
+	_, err = fmt.Fprintln(file, str)
+	if err != nil {
+		fmt.Printf("Failed to write to log file: %v\n", err)
+	}
+}

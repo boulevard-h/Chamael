@@ -5,12 +5,14 @@ import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
 	"Chamael/pkg/utils"
+	"Chamael/pkg/utils/logger"
 	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"time"
 
 	"go.dedis.ch/kyber/v3"
@@ -110,6 +112,13 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	log.Println("NLFinder result:", res, p.PID)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+	// 同时写入性能日志
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("NLFinder result: %s\nDuration: %s\n", res, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }
 
 func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
@@ -212,4 +221,11 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 	log.Println("NLHelper result:", res, p.PID)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+	// 同时写入性能日志
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("NLFinder result: %s\nDuration: %s\n", res, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }

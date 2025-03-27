@@ -5,12 +5,14 @@ import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
 	"Chamael/pkg/utils"
+	"Chamael/pkg/utils/logger"
 	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/bits-and-blooms/bitset"
@@ -218,4 +220,11 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 	log.Println("ReConfig Result: NewNodes =", rcConfig.NewNodes)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("RCHelper Result: NewNodes = %v\nDuration: %s\n", rcConfig.NewNodes, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }

@@ -5,6 +5,7 @@ import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
 	"Chamael/pkg/utils"
+	"Chamael/pkg/utils/logger"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -140,6 +141,13 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	log.Println("NSFinder result:", res, p.PID)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("NSFinder result: %s\nDuration: %s\n", res, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }
 
 func NSHelperIntra(p *party.HonestParty) {
@@ -186,6 +194,13 @@ func NSHelperIntra(p *party.HonestParty) {
 	log.Println("NSHelperIntra result:", res, p.PID)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("NSHelperIntra result: %s\nDuration: %s\n", res, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }
 
 func NSHelperCross(p *party.HonestParty) {
@@ -254,4 +269,11 @@ func NSHelperCross(p *party.HonestParty) {
 	log.Println("NSHelperCross result:", res, p.PID)
 	duration := timeEnd.Sub(timeStart)
 	log.Printf("Duration: %s\n", duration)
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	str := fmt.Sprintf("NSHelperCross result: %s\nDuration: %s\n", res, duration)
+	logger.WriteToPerformanceLog(*p, homeDir+"/Chamael/log/", str)
 }
