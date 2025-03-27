@@ -48,6 +48,25 @@ func main() {
 
 	p.InitSendChannel()
 
+	// 从命令行参数获取启动时间字符串（格式：2006-01-02 15:04:05.000）
+	if len(os.Args) < 4 {
+		log.Fatalln("Please input the start time:2006-01-02 15:04:05.000")
+	}
+	startTimeStr := os.Args[3]
+
+	// 解析启动时间
+	startTime, err := time.ParseInLocation("2006-01-02 15:04:05.000", startTimeStr, time.Local)
+	if err != nil {
+		log.Fatalln("Time format error:", err)
+	}
+
+	// 等待直到指定时间
+	now := time.Now()
+	if startTime.After(now) {
+		waitDuration := startTime.Sub(now)
+		time.Sleep(waitDuration)
+	}
+
 	if p.PID == uint32(nsConfig.NSShard)*p.N {
 		bft.NSFinder(p, &nsConfig)
 	} else if p.Snumber == uint32(nsConfig.NSShard) {

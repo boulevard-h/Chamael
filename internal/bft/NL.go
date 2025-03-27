@@ -55,7 +55,7 @@ func (c *NLConfig) ReadNLConfig(ConfigName string, p *party.HonestParty) error {
 
 func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	if p.Debug {
-		fmt.Println("Start NLFinder", p.PID)
+		log.Println("Start NLFinder", p.PID)
 	}
 	suite := bn256.NewSuite()
 	timeStart := time.Now()
@@ -123,7 +123,7 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 
 func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 	if p.Debug {
-		fmt.Println("Start NLHelper", p.PID)
+		log.Println("Start NLHelper", p.PID)
 	}
 	suite := bn256.NewSuite()
 	A_bytes := nlConfig.A.Bytes()

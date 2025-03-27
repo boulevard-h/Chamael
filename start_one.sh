@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Check if parameters are provided
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-  echo "Usage: $0 <id> <mode> <print_perf>"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+  echo "Usage: $0 <id> <mode> <print_perf> <start_time>"
   exit 1
 fi
 
 id="$1"
 mode="$2"
 print_perf="$3"
-
+start_time="$4"
 # Directory containing the config files
 config_dir="$HOME/Chamael/configs"
 config_file="$config_dir/config_$id.yaml"
@@ -30,7 +30,7 @@ if [ -f "$config_file" ]; then
     go run ./cmd/txsMaker --id $id --shard_num 3 --tx_num $tx_num --Rrate 10
 
     # Call main program with config file and mode
-    go run ./cmd/main "$config_file" "$mode"
+    go run ./cmd/main "$config_file" "$mode" "$start_time"
 else
     echo "Config file $config_file not found"
 fi

@@ -80,7 +80,7 @@ func RCStarter(p *party.HonestParty, rcConfig *RCConfig) {
 
 func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 	if p.Debug {
-		fmt.Println("Start RCHelper", p.PID)
+		log.Println("Start RCHelper", p.PID)
 	}
 	suite := bn256.NewSuite()
 	A_bytes := rcConfig.A.Bytes()

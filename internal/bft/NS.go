@@ -75,7 +75,7 @@ func CheckSigs(p *party.HonestParty, NSShard int, H uint32, A1_bytes, A2_bytes, 
 
 func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	if p.Debug {
-		fmt.Println("Start NSFinder", p.PID)
+		log.Println("Start NSFinder", p.PID)
 	}
 	suite := bn256.NewSuite()
 
@@ -152,7 +152,7 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 
 func NSHelperIntra(p *party.HonestParty) {
 	if p.Debug {
-		fmt.Println("Start NSHelperIntra", p.PID)
+		log.Println("Start NSHelperIntra", p.PID)
 	}
 	suite := bn256.NewSuite()
 	timeStart := time.Now()
@@ -205,7 +205,7 @@ func NSHelperIntra(p *party.HonestParty) {
 
 func NSHelperCross(p *party.HonestParty) {
 	if p.Debug {
-		fmt.Println("Start NSHelperCross", p.PID)
+		log.Println("Start NSHelperCross", p.PID)
 	}
 	suite := bn256.NewSuite()
 	timeStart := time.Now()
