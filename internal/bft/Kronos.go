@@ -136,7 +136,7 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 	return
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time) {
+func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration) {
 	txPool := NewTransactionPool()
 	var TXsInformChannel = make(chan []string, 1024)
 	var InputResultTobeDoneChannel = make(chan []string, 1024)
@@ -162,6 +162,8 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		} else {
 			is_coordinator = false
 		}
+
+		epoch_start_time := time.Now()
 
 		if e > 1 {
 			InpufBFT_Result_Handler(p, e-1, InputResultTobeDoneChannel, txPool)
@@ -197,6 +199,8 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		//对于片内交易和输出分片为自己的交易,直接输出,作为吞吐量计算
 		outputChannel <- txs_itx2
 		outputChannel <- txs_ctx2[int(p.Snumber)]
+
+		block_delay_channel <- time.Since(epoch_start_time)
 
 		// 更新累加器
 		// 合并 txs_ctx2[int(p.Snumber)] 和 txs_itx2
@@ -283,6 +287,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 			p.Send(SigMessage, m.Sender)
 		}
 
+		round_delay_channel <- time.Since(epoch_start_time)
 		timeChannel <- time.Now()
 	}
 	time.Sleep(time.Second * 15)

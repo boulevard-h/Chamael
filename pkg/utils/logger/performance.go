@@ -32,7 +32,7 @@ func isInternal(tx string) bool {
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
-func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string) {
+func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration) {
 	var earliestTime, latestTime time.Time
 	var totalTransactions, internalTransactions, crossShardTransactions int
 
@@ -106,17 +106,61 @@ func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeC
 	internalTPS := float64(internalTransactions) / duration
 	crossShardTPS := float64(crossShardTransactions) / duration
 
-	// 输出到文件
+	// 计算区块延迟和轮次延迟的平均值
+	var totalBlockDelay time.Duration
+	var totalRoundDelay time.Duration
+	var blockDelayCount int
+	var roundDelayCount int
+
+	// 从 block_delay_channel 获取所有数据
+	for {
+		select {
+		case delay := <-block_delay_channel:
+			totalBlockDelay += delay
+			blockDelayCount++
+		default:
+			goto blockDelayDone
+		}
+	}
+blockDelayDone:
+
+	// 从 round_delay_channel 获取所有数据
+	for {
+		select {
+		case delay := <-round_delay_channel:
+			totalRoundDelay += delay
+			roundDelayCount++
+		default:
+			goto roundDelayDone
+		}
+	}
+roundDelayDone:
+
+	// 计算平均延迟（转换为毫秒）
+	var avgBlockDelay float64
+	var avgRoundDelay float64
+	if blockDelayCount > 0 {
+		avgBlockDelay = float64(totalBlockDelay.Milliseconds()) / float64(blockDelayCount)
+	}
+	if roundDelayCount > 0 {
+		avgRoundDelay = float64(totalRoundDelay.Milliseconds()) / float64(roundDelayCount)
+	}
+
+	latency := (1 - c.Crate) * avgBlockDelay + c.Crate * (avgBlockDelay + avgRoundDelay)
+
+	// 修改日志消息，添加延迟信息
 	logMessage := fmt.Sprintf(
 		"Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
-			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n",
-		totalTransactions, internalTransactions, crossShardTransactions, totalTPS, internalTPS, crossShardTPS,
+			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
+			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n",
+		totalTransactions, internalTransactions, crossShardTransactions,
+		totalTPS, internalTPS, crossShardTPS,
+		avgBlockDelay, avgRoundDelay, latency,
 	)
 	_, err = fmt.Fprintln(file, logMessage)
 	if err != nil {
 		fmt.Printf("Failed to write to log file: %v\n", err)
 	}
-
 }
 
 func WriteToPerformanceLog(p party.HonestParty, path string, str string) {
