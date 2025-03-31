@@ -125,7 +125,7 @@ chmod 777 env-batch.sh
   go run ./cmd/duration/durationCal.go
   ```
 
-##### NL
+##### Re
 
 * 编辑`aws-run.txt`：
 
