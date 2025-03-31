@@ -24,10 +24,12 @@ if [ -f "$config_file" ]; then
     TestEpochs=$(grep '^TestEpochs:' "$config_file" | awk '{print $2}')
     tx_num=$(echo "$Txnum * $Crate * $TestEpochs" | bc -l)
     tx_num=$(printf "%.0f" "$tx_num")
+    # 从 config 读取参数 m
+    m=$(grep '^m:' "$config_file" | awk '{print $2}')
     echo "Cross-shard tx_num: $tx_num"
 
     # Call txsMaker program with tx_num parameter
-    go run ./cmd/txsMaker --id $id --shard_num 3 --tx_num $tx_num --Rrate 10
+    go run ./cmd/txsMaker --id $id --shard_num $m --tx_num $tx_num --Rrate 10
 
     # Call main program with config file and mode
     go run ./cmd/main "$config_file" "$mode" "$start_time"
