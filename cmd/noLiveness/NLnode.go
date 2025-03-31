@@ -73,7 +73,8 @@ func main() {
 		bft.NLHelper(p, &nlConfig)
 	}
 
-	time.Sleep(time.Second * 5) // 如果不等待，可能会导致发送卡住，有些节点无法退出
+	// time.Sleep(time.Second * 5) // 如果不等待，可能会导致发送卡住，有些节点无法退出
+	time.Sleep(time.Second * (time.Duration(c.WaitTime / 10)))
 	if p.Debug {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
 	}

@@ -32,7 +32,7 @@ PortList:
 - 9244
 PrepareTime: 50
 Statistic: ./statistics
-WaitTime: 120
+WaitTime: 150
 Txnum: 1000
 Crate: 0.1
 TestEpochs: 5

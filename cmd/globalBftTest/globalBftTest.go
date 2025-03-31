@@ -46,7 +46,8 @@ func main() {
 	txs_out := <-outputChannel
 	fmt.Println("txs_out:", txs_out, p.PID)
 
-	time.Sleep(time.Second * 5)
+	// time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * (time.Duration(c.WaitTime / 10)))
 
 	log.Println("exit safely", p.PID)
 }

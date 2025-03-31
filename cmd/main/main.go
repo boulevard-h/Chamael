@@ -100,9 +100,10 @@ func main() {
 	block_delay_channel := make(chan time.Duration, 1024)
 	round_delay_channel := make(chan time.Duration, 1024)
 	//timeChannel <- time.Now()
-	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel)
+	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, c.WaitTime)
 
-	time.Sleep(time.Second * 15)
+	// time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * (time.Duration(c.WaitTime / 10)))
 	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel)
 	if p.Debug == true {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")

@@ -136,7 +136,7 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 	return
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration) {
+func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, WaitTime int) {
 	txPool := NewTransactionPool()
 	var TXsInformChannel = make(chan []string, 1024)
 	var InputResultTobeDoneChannel = make(chan []string, 1024)
@@ -290,5 +290,6 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		round_delay_channel <- time.Since(epoch_start_time)
 		timeChannel <- time.Now()
 	}
-	time.Sleep(time.Second * 15)
+	// time.Sleep(time.Second * 15)
+	time.Sleep(time.Second * (time.Duration(WaitTime / 10)))
 }
