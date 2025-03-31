@@ -34,7 +34,8 @@ while [ $i -le $(( N-1 )) ]; do
             ubuntu@${pubIPsVar[i]}:/home/ubuntu/Chamael/cmd/noSafety/
     ) &
     
-    wait echo "[✓] 完成服务器 ${pubIPsVar[i]}"
+    wait 
+    echo "[✓] 完成服务器 ${pubIPsVar[i]}"
     ) &
     i=$(( i+1 ))
 done
