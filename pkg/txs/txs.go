@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -44,14 +43,12 @@ func contains(slice []int, value int) bool {
 }
 
 func InterTxGenerator(size int, shardID int, PID int, chars string) string {
-	rand.Seed(time.Now().UnixNano())
 	randomString := randomString(size, chars)
 	shardInfo := fmt.Sprintf(", Userset: %d, Input Shard: [%d], Input Valid: [1], Output Shard: %d, Output Valid: 2", PID, shardID, shardID)
 	//↑目前只考虑合法交易
 	return fmt.Sprintf("<Dummy TX: %s%s >", randomString, shardInfo)
 }
 func CrossTxGenerator(size, shardNum, Rrate int, PID int, chars string) string {
-	rand.Seed(time.Now().UnixNano())
 
 	// Determine the number of input shards
 	inputShardNum := rand.Intn(3) + 1

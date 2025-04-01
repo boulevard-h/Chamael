@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -15,7 +16,7 @@ func SaveTxsToSQL(txs []string, filename string) {
 		if err != nil {
 			log.Fatalf("Error deleting SQLite database file: %v\n", err)
 		}
-		log.Printf("Existing database file '%s' removed.\n", filename)
+		//log.Printf("Existing database file '%s' removed.\n", filename)
 	}
 
 	db, err := sql.Open("sqlite3", filename)
@@ -24,37 +25,54 @@ func SaveTxsToSQL(txs []string, filename string) {
 	}
 	defer db.Close()
 
+	// 开启事务
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatalf("Error beginning transaction: %v\n", err)
+	}
+
 	// Create the table for transactions
 	createTableSQL := `
 	CREATE TABLE IF NOT EXISTS transactions (
 	    id INTEGER PRIMARY KEY,
 		tx TEXT NOT NULL
 	);`
-	_, err = db.Exec(createTableSQL)
+	_, err = tx.Exec(createTableSQL)
 	if err != nil {
+		tx.Rollback()
 		log.Fatalf("Error creating table: %v\n", err)
 	}
 
 	// Clear the table before inserting new data
 	clearTableSQL := `DELETE FROM transactions;`
-	_, err = db.Exec(clearTableSQL)
+	_, err = tx.Exec(clearTableSQL)
 	if err != nil {
+		tx.Rollback()
 		log.Fatalf("Error clearing table: %v\n", err)
 	}
 
-	// Insert transactions into the table
+	// 准备批量插入语句
 	insertSQL := `INSERT INTO transactions (tx) VALUES (?)`
-	stmt, err := db.Prepare(insertSQL)
+	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
+		tx.Rollback()
 		log.Fatalf("Error preparing insert statement: %v\n", err)
 	}
 	defer stmt.Close()
 
-	for _, tx := range txs {
-		_, err = stmt.Exec(tx)
+	// 批量插入数据
+	for _, txData := range txs {
+		_, err = stmt.Exec(txData)
 		if err != nil {
+			tx.Rollback()
 			log.Fatalf("Error inserting transaction: %v\n", err)
 		}
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		log.Fatalf("Error committing transaction: %v\n", err)
 	}
 }
 
@@ -65,9 +83,26 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 	}
 	defer db.Close()
 
-	// 使用 LIMIT 限制返回的事务数量
-	rows, err := db.Query("SELECT * FROM transactions LIMIT ?", limit)
+	// 设置一些性能优化参数
+	_, err = db.Exec("PRAGMA journal_mode = WAL")
 	if err != nil {
+		return nil, fmt.Errorf("failed to set WAL mode: %v", err)
+	}
+	_, err = db.Exec("PRAGMA synchronous = NORMAL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to set synchronous mode: %v", err)
+	}
+
+	// 开启事务
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %v", err)
+	}
+
+	// 使用 LIMIT 限制返回的事务数量
+	rows, err := tx.Query("SELECT id, tx FROM transactions LIMIT ?", limit)
+	if err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("failed to query database: %v", err)
 	}
 	defer rows.Close()
@@ -78,24 +113,42 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 	// 读取数据库中的事务
 	for rows.Next() {
 		var id int
-		var tx string
-		if err := rows.Scan(&id, &tx); err != nil {
+		var txData string
+		if err := rows.Scan(&id, &txData); err != nil {
+			tx.Rollback()
 			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
-		txs = append(txs, tx)
-		txIDs = append(txIDs, id) // 记录事务的 ID 以便后续删除
+		txs = append(txs, txData)
+		txIDs = append(txIDs, id)
 	}
 
 	if err := rows.Err(); err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("error iterating rows: %v", err)
 	}
 
-	// 删除已读取的事务
-	for _, id := range txIDs {
-		_, err := db.Exec("DELETE FROM transactions WHERE id = ?", id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete transaction with id %d: %v", id, err)
+	// 批量删除已读取的事务
+	if len(txIDs) > 0 {
+		// 构建 IN 查询的参数
+		placeholders := make([]string, len(txIDs))
+		args := make([]interface{}, len(txIDs))
+		for i := range txIDs {
+			placeholders[i] = "?"
+			args[i] = txIDs[i]
 		}
+		deleteSQL := fmt.Sprintf("DELETE FROM transactions WHERE id IN (%s)", strings.Join(placeholders, ","))
+
+		_, err = tx.Exec(deleteSQL, args...)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to delete transactions: %v", err)
+		}
+	}
+
+	// 提交事务
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	return txs, nil

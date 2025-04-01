@@ -42,12 +42,15 @@ func main() {
 	isTxnum := int(float64(c.Txnum) * (1 - c.Crate))
 	csTxnum := c.Txnum - isTxnum
 
+	//generateStartTime := time.Now()
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	var Txs []string
 	for i := 0; i < isTxnum*c.TestEpochs; i++ {
 		tx := txs.InterTxGenerator(txlength, int(p.Snumber), int(p.PID), chars)
 		Txs = append(Txs, tx)
 	}
+	//generateDuration := time.Since(generateStartTime)
+	//fmt.Printf("生成片内交易耗时: %.2f ms\n", float64(generateDuration.Nanoseconds())/1e6)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -55,7 +58,11 @@ func main() {
 	}
 
 	itxdb := fmt.Sprintf(homeDir+"/Chamael/db/inter_txs_node%d.db", p.PID)
+
+	//saveStartTime := time.Now()
 	db.SaveTxsToSQL(Txs, itxdb)
+	//saveDuration := time.Since(saveStartTime)
+	//fmt.Printf("保存片内交易到数据库耗时: %.2f ms\n", float64(saveDuration.Nanoseconds())/1e6)
 	fmt.Println("Inner-Shard Transactions saved to SQLite database.")
 
 	ctxdb := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(int(p.PID)) + ".db"
@@ -65,12 +72,15 @@ func main() {
 	outputChannel := make(chan []string, 1024)
 
 	//预先装入一些交易
+	//loadStartTime := time.Now()
 	for e := 1; e <= c.TestEpochs; e++ {
 		itxs, _ := db.LoadAndDeleteTxsFromDB(itxdb, isTxnum)
 		itx_inputChannel <- itxs
 		ctxs, _ := db.LoadAndDeleteTxsFromDB(ctxdb, csTxnum)
 		ctx_inputChannel <- ctxs
 	}
+	//loadDuration := time.Since(loadStartTime)
+	//fmt.Printf("从数据库加载交易耗时: %.2f ms\n", float64(loadDuration.Nanoseconds())/1e6)
 
 	//go bft.HotStuffProcess(p, c.TestEpochs, itx_inputChannel, outputChannel)
 	/*for i := 1; i <= c.TestEpochs; i++ {
@@ -105,7 +115,7 @@ func main() {
 	// time.Sleep(time.Second * 15)
 	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))
 	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel)
-	if p.Debug == true {
+	if p.Debug {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
 	}
 	log.Println("exit safely", p.PID)
