@@ -129,19 +129,28 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 
 	// 批量删除已读取的事务
 	if len(txIDs) > 0 {
-		// 构建 IN 查询的参数
-		placeholders := make([]string, len(txIDs))
-		args := make([]interface{}, len(txIDs))
-		for i := range txIDs {
-			placeholders[i] = "?"
-			args[i] = txIDs[i]
-		}
-		deleteSQL := fmt.Sprintf("DELETE FROM transactions WHERE id IN (%s)", strings.Join(placeholders, ","))
+		// 分批处理删除操作，每批最多处理 500 个 ID
+		batchSize := 500
+		for i := 0; i < len(txIDs); i += batchSize {
+			end := i + batchSize
+			if end > len(txIDs) {
+				end = len(txIDs)
+			}
 
-		_, err = tx.Exec(deleteSQL, args...)
-		if err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to delete transactions: %v", err)
+			// 构建当前批次的 IN 查询参数
+			placeholders := make([]string, end-i)
+			args := make([]interface{}, end-i)
+			for j := range placeholders {
+				placeholders[j] = "?"
+				args[j] = txIDs[i+j]
+			}
+			deleteSQL := fmt.Sprintf("DELETE FROM transactions WHERE id IN (%s)", strings.Join(placeholders, ","))
+
+			_, err = tx.Exec(deleteSQL, args...)
+			if err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to delete transactions batch: %v", err)
+			}
 		}
 	}
 
