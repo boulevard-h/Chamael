@@ -136,7 +136,7 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 	return
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, WaitTime int) {
+func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
 	txPool := NewTransactionPool()
 	var TXsInformChannel = make(chan []string, 1024)
 	var InputResultTobeDoneChannel = make(chan []string, 1024)
@@ -172,6 +172,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		}
 
 		//获取新跨片交易,把跨片交易按输入分片分类后发给对应分片
+		TXsInformSender_start_time := time.Now()
 		ctx := <-ctx_inputChannel
 		txs_ctx = CategorizeTransactionsByInputShard(ctx)
 		for i := uint32(0); i < p.M; i++ {
@@ -180,11 +181,14 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 			})
 			p.Shard_Broadcast(TXsInformMesssage, i)
 		}
+		extra_delay_channel <- time.Since(TXsInformSender_start_time)
 
 		//把片内和跨片交易放入片内共识,并获取结果、进行分类(通道获取交易&片内共识全是阻塞的)
 		txs_itx = <-itx_inputChannel
 		txs_in = append(txs_in, txs_itx...)
+		TXsInformReceiver_start_time := time.Now()
 		TXs_Inform_Handler(p, e, TXsInformChannel)
+		extra_delay_channel <- time.Since(TXsInformReceiver_start_time)
 		txs_ctx_in = <-TXsInformChannel
 		txs_in = append(txs_in, txs_ctx_in...)
 

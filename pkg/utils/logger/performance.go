@@ -32,7 +32,7 @@ func isInternal(tx string) bool {
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
-func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration) {
+func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration) {
 	var earliestTime, latestTime time.Time
 	var totalTransactions, internalTransactions, crossShardTransactions int
 
@@ -93,8 +93,20 @@ func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeC
 		return
 	}
 
+	// 从 extra_delay_channel 获取所有数据
+	var totalExtraDelay time.Duration
+	for {
+		select {
+		case delay := <-extra_delay_channel:
+			totalExtraDelay += delay
+		default:
+			goto extraDelayDone
+		}
+	}
+extraDelayDone:
+
 	// 计算时间差（单位：秒）
-	duration := latestTime.Sub(earliestTime).Seconds()
+	duration := latestTime.Sub(earliestTime).Seconds() - float64(totalExtraDelay.Milliseconds())/1000
 	fmt.Printf("Time difference: %.2f seconds\n", duration)
 
 	internalTransactions = int(float64(internalTransactions) / float64(p.N))
@@ -140,13 +152,26 @@ roundDelayDone:
 	var avgBlockDelay float64
 	var avgRoundDelay float64
 	if blockDelayCount > 0 {
-		avgBlockDelay = float64(totalBlockDelay.Milliseconds()) / float64(blockDelayCount)
+		avgBlockDelay = (float64(totalBlockDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(blockDelayCount)
 	}
 	if roundDelayCount > 0 {
-		avgRoundDelay = float64(totalRoundDelay.Milliseconds()) / float64(roundDelayCount)
+		avgRoundDelay = (float64(totalRoundDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(roundDelayCount)
 	}
 
-	latency := (1 - c.Crate) * avgBlockDelay + c.Crate * (avgBlockDelay + avgRoundDelay)
+	/*
+		fmt.Printf("totalBlockDelay: %v\n", totalBlockDelay)
+		fmt.Printf("totalRoundDelay: %v\n", totalRoundDelay)
+		fmt.Printf("totalExtraDelay: %v\n", totalExtraDelay)
+
+		if blockDelayCount > 0 {
+			avgBlockDelay = (float64(totalBlockDelay.Milliseconds())) / float64(blockDelayCount)
+		}
+		if roundDelayCount > 0 {
+			avgRoundDelay = (float64(totalRoundDelay.Milliseconds())) / float64(roundDelayCount)
+		}
+	*/
+
+	latency := (1-c.Crate)*avgBlockDelay + c.Crate*(avgBlockDelay+avgRoundDelay)
 
 	// 修改日志消息，添加延迟信息
 	logMessage := fmt.Sprintf(
