@@ -12,7 +12,7 @@ import (
 
 // 计算平均Duration
 func CalculateAverageDuration(dir string) (float64, error) {
-	durationReg := regexp.MustCompile(`Duration:\s*([\d\.]+)ms`)
+	durationReg := regexp.MustCompile(`Duration:\s*([\d\.]+)(ms|s)`)
 
 	var totalDuration float64
 	var durationCount int
@@ -36,6 +36,9 @@ func CalculateAverageDuration(dir string) (float64, error) {
 				if matches := durationReg.FindStringSubmatch(line); matches != nil {
 					duration, err := strconv.ParseFloat(matches[1], 64)
 					if err == nil {
+						if matches[2] == "s" {
+							duration *= 1000
+						}
 						totalDuration += duration
 						durationCount++
 					}
