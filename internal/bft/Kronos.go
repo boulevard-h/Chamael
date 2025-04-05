@@ -124,7 +124,7 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 				}
 			}
 		}
-		if len(l) >= int(p.M)-1 {
+		if len(l) >= int(p.M) { // 也会收到自己的 所以应该是 m 而非 m-1
 			break
 		}
 	}

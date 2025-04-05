@@ -76,7 +76,7 @@ func main() {
 	for e := 1; e <= c.TestEpochs; e++ {
 		itxs, _ := db.LoadAndDeleteTxsFromDB(itxdb, isTxnum)
 		itx_inputChannel <- itxs
-		ctxs, _ := db.LoadAndDeleteTxsFromDB(ctxdb, csTxnum)
+		ctxs, _ := db.LoadAndDeleteTxsFromDB(ctxdb, int(uint32(csTxnum)/p.N))
 		ctx_inputChannel <- ctxs
 	}
 	//loadDuration := time.Since(loadStartTime)

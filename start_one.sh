@@ -24,6 +24,13 @@ if [ -f "$config_file" ]; then
     TestEpochs=$(grep '^TestEpochs:' "$config_file" | awk '{print $2}')
     tx_num=$(echo "$Txnum * $Crate * $TestEpochs" | bc -l)
     tx_num=$(printf "%.0f" "$tx_num")
+    
+    # 从 config 读取参数 N
+    N=$(grep '^"N":' "$config_file" | awk '{print $2}')
+    # 将 tx_num 除以 N
+    tx_num=$(echo "$tx_num / $N" | bc -l)
+    tx_num=$(printf "%.0f" "$tx_num")
+    
     # 从 config 读取参数 m
     m=$(grep '^m:' "$config_file" | awk '{print $2}')
     echo "Cross-shard tx_num: $tx_num"
