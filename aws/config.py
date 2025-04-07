@@ -23,9 +23,9 @@ def extract_unique_public_ips(nested_dict, key_to_extract):
 def generate_yaml_config(public_ips, nodes_per_server, start_port):
     # server_number = len(public_ips) 使用的服务器数量
     # nodes_per_server = 4 每台服务器上部署的节点数
-    N = 4 #每个分片中的节点数量
-    F = 1 #每个分片中的恶意节点数量
-    m = 8 #分片个数
+    N = 72 #每个分片中的节点数量
+    F = 24 #每个分片中的恶意节点数量
+    m = 7 #分片个数
 
     # 生成IP列表（每个IP重复nodes_per_server次）
     IPList = []
@@ -94,21 +94,31 @@ def generate_bash_script(public_ips, node):
 
 # 获取各区域的公共IP
 region_names = ['us-east-1', 'ap-east-1', 'ap-northeast-1', 'eu-west-2']
-unique_public_ips = []
+region_to_ips = {}
+
+# 按区域获取IP并存储
 for region_name in region_names:
     ec2 = boto3.client('ec2', region_name=region_name)
     response = ec2.describe_instances()
-    unique_public_ips.extend(extract_unique_public_ips(response, 'PublicIpAddress'))
+    region_ips = extract_unique_public_ips(response, 'PublicIpAddress')
+    if region_ips:  # 只有当找到IP时才添加
+        region_to_ips[region_name] = region_ips
+
+# 按区域组织的IP列表
+sorted_unique_public_ips = []
+for region_name in region_names:
+    if region_name in region_to_ips:
+        sorted_unique_public_ips.extend(region_to_ips[region_name])
 
 # 生成YAML配置
 yaml_config = generate_yaml_config(
-    public_ips=unique_public_ips,
+    public_ips=sorted_unique_public_ips,
     nodes_per_server=4,
     start_port=9233
 )
 
 # 生成bash脚本
-bash_script = generate_bash_script(unique_public_ips,4)
+bash_script = generate_bash_script(sorted_unique_public_ips, 4)
 
 # 输出结果
 print("YAML配置：")
