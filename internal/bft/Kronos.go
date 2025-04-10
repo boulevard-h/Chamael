@@ -138,8 +138,8 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 
 func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
 	txPool := NewTransactionPool()
-	var TXsInformChannel = make(chan []string, 1024)
-	var InputResultTobeDoneChannel = make(chan []string, 1024)
+	var TXsInformChannel = make(chan []string, 4096)
+	var InputResultTobeDoneChannel = make(chan []string, 4096)
 	suite := bn256.NewSuite()
 	acc_setup := crypto.TrustedSetup()
 	timeChannel <- time.Now()
@@ -192,8 +192,8 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		txs_ctx_in = <-TXsInformChannel
 		txs_in = append(txs_in, txs_ctx_in...)
 
-		inputChannel := make(chan []string, 1024)
-		receiveChannel := make(chan []string, 1024)
+		inputChannel := make(chan []string, 4096)
+		receiveChannel := make(chan []string, 4096)
 		inputChannel <- txs_in
 
 		HotStuffProcess(p, int(e), inputChannel, receiveChannel, false)

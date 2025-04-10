@@ -127,8 +127,8 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 	p.Broadcast(NSChoiceMessage)
 
 	// step3: run global BFT
-	inputChannel := make(chan []string, 1024)
-	receiveChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	receiveChannel := make(chan []string, 4096)
 	e := uint32(1)
 	intersection := nodes1_bm.Intersection(nodes2_bm)
 	input_str := "<NS BadNodes " + intersection.String() + " Choice " + NSConfig.A1.String() + ">"
@@ -178,8 +178,8 @@ func NSHelperIntra(p *party.HonestParty) {
 	p.Broadcast(NSChoiceMessage)
 
 	// step3: run global BFT
-	inputChannel := make(chan []string, 1024)
-	receiveChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	receiveChannel := make(chan []string, 4096)
 	e := uint32(1)
 	intersection := nodes1_bm.Intersection(&nodes2_bm)
 	// 把 payload.A1 转化为 big.Int
@@ -255,8 +255,8 @@ func NSHelperCross(p *party.HonestParty) {
 	}
 
 	// step3: run global BFT
-	inputChannel := make(chan []string, 1024)
-	receiveChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	receiveChannel := make(chan []string, 4096)
 	e := uint32(1)
 	intersection := nodes1_bm.Intersection(&nodes2_bm)
 	input_str := "<NS BadNodes " + intersection.String() + " Choice " + AChoice + ">"

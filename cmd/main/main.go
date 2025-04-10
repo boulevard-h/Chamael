@@ -67,9 +67,9 @@ func main() {
 
 	ctxdb := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(int(p.PID)) + ".db"
 
-	itx_inputChannel := make(chan []string, 1024)
-	ctx_inputChannel := make(chan []string, 1024)
-	outputChannel := make(chan []string, 1024)
+	itx_inputChannel := make(chan []string, 4096)
+	ctx_inputChannel := make(chan []string, 4096)
+	outputChannel := make(chan []string, 4096)
 
 	//预先装入一些交易
 	//loadStartTime := time.Now()
@@ -106,10 +106,10 @@ func main() {
 		time.Sleep(waitDuration)
 	}
 
-	timeChannel := make(chan time.Time, 1024)
-	block_delay_channel := make(chan time.Duration, 1024)
-	round_delay_channel := make(chan time.Duration, 1024)
-	extra_delay_channel := make(chan time.Duration, 1024)
+	timeChannel := make(chan time.Time, 4096)
+	block_delay_channel := make(chan time.Duration, 4096)
+	round_delay_channel := make(chan time.Duration, 4096)
+	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
 	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"time"
@@ -14,7 +15,7 @@ import (
 )
 
 // MakeReceiveChannel returns a channel receiving messages
-func MakeReceiveChannel(port string, Debug bool) chan *protobuf.Message {
+func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message {
 	var addr *net.TCPAddr
 	var lis *net.TCPListener
 	var err1, err2 error
@@ -61,7 +62,9 @@ func MakeReceiveChannel(port string, Debug bool) chan *protobuf.Message {
 					_, err2 := io.ReadFull(conn, buf)
 
 					if err1 != nil || err2 != nil {
-						log.Printf("The receive channel of %s (from %s) has break down", conn.LocalAddr(), conn.RemoteAddr())
+						if num <= 10 || rand.Intn(num) < 10 {
+							log.Printf("The receive channel of %s (from %s) has break down", conn.LocalAddr(), conn.RemoteAddr())
+						}
 						return
 					}
 

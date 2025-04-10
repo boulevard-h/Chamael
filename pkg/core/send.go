@@ -13,7 +13,7 @@ import (
 )
 
 // MAXMESSAGE is the size of channels
-var MAXMESSAGE = 1024
+var MAXMESSAGE = 4096
 
 // MakeSendChannel returns a channel to send messages to hostIP
 func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool) chan *protobuf.Message {

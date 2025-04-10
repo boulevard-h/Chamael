@@ -34,8 +34,8 @@ func main() {
 
 	p.InitSendChannel()
 
-	inputChannel := make(chan []string, 1024)
-	outputChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	outputChannel := make(chan []string, 4096)
 
 	txs := []string{"test-txs1", "tx2", "tx369"}
 	inputChannel <- txs

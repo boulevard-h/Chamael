@@ -100,8 +100,8 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	p.Broadcast(NLConfirmMessage)
 
 	// Step3: 进入全局BFT
-	inputChannel := make(chan []string, 1024)
-	receiveChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	receiveChannel := make(chan []string, 4096)
 	e := uint32(1)
 	// inputChannel <- []string{"test for NL"}
 	fmt.Println("Enter HotStuffProcess", p.PID)
@@ -206,8 +206,8 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 		}
 	}
 	// 全局BFT
-	inputChannel := make(chan []string, 1024)
-	receiveChannel := make(chan []string, 1024)
+	inputChannel := make(chan []string, 4096)
+	receiveChannel := make(chan []string, 4096)
 	e := uint32(1)
 	if (e-1)%(p.N*p.M) == p.PID {
 		inputChannel <- []string{"This is the result for NL"}

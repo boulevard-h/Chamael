@@ -45,7 +45,7 @@ func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *CommonParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug), p.N)
+	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.N)), p.N)
 	return nil
 }
 
@@ -123,7 +123,7 @@ func (p *CommonParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
 
 	var value2 any
-	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, 1024))
+	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, 4096))
 
 	return value2.(chan *protobuf.Message)
 }
