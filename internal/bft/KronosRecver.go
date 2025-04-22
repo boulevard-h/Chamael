@@ -65,7 +65,7 @@ func InputBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 	return
 }
 
-func KronosRecver(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
+func KronosRecver(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, itx_letency_channel chan time.Duration, ctx_latency_channel chan time.Duration, WaitTime int) {
 	txPool := NewTransactionPool()
 	var InputResultTobeDoneChannel = make(chan []string, 4096)
 	timeChannel <- time.Now()
@@ -78,7 +78,6 @@ func KronosRecver(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 		epoch_start_time := time.Now()
 
 		// 获取新跨片交易,把跨片交易按输入分片分类后发给对应分片
-		TXsInformSender_start_time := time.Now()
 		ctx := <-ctx_inputChannel
 		txs_ctx = CategorizeTransactionsByInputShard(ctx)
 		for i := uint32(0); i < p.M; i++ {
@@ -90,7 +89,6 @@ func KronosRecver(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 				fmt.Printf("Debug: node%d[shard%d] send TXs_Inform to shard%d including %d txs\n", p.PID, p.Snumber, i, len(txs_ctx[int(i)]))
 			}
 		}
-		extra_delay_channel <- time.Since(TXsInformSender_start_time)
 
 		//处理 Input_BFT_Result
 		InputBFT_Result_Handler(p, e, InputResultTobeDoneChannel, txPool)
@@ -113,8 +111,7 @@ func KronosRecver(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 
 		outputChannel <- <-receiveChannel
 
-		block_delay_channel <- time.Since(epoch_start_time)
-		round_delay_channel <- time.Since(epoch_start_time)
+		ctx_latency_channel <- time.Since(epoch_start_time)
 		timeChannel <- time.Now()
 	}
 	// time.Sleep(time.Second * 15)

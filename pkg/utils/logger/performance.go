@@ -32,7 +32,7 @@ func isInternal(tx string) bool {
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
-func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration) {
+func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, itx_letency_channel chan time.Duration, ctx_latency_channel chan time.Duration) {
 	var earliestTime, latestTime time.Time
 	var totalTransactions, internalTransactions, crossShardTransactions int
 
@@ -93,20 +93,8 @@ func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeC
 		return
 	}
 
-	// 从 extra_delay_channel 获取所有数据
-	var totalExtraDelay time.Duration
-	for {
-		select {
-		case delay := <-extra_delay_channel:
-			totalExtraDelay += delay
-		default:
-			goto extraDelayDone
-		}
-	}
-extraDelayDone:
-
 	// 计算时间差（单位：秒）
-	duration := latestTime.Sub(earliestTime).Seconds() - float64(totalExtraDelay.Milliseconds())/1000
+	duration := latestTime.Sub(earliestTime).Seconds()
 	fmt.Printf("Time difference: %.2f seconds\n", duration)
 
 	internalTransactions = int(float64(internalTransactions) / float64(p.N))
@@ -118,69 +106,79 @@ extraDelayDone:
 	internalTPS := float64(internalTransactions) / duration
 	crossShardTPS := float64(crossShardTransactions) / duration
 
-	// 计算区块延迟和轮次延迟的平均值
-	var totalBlockDelay time.Duration
-	var totalRoundDelay time.Duration
-	var blockDelayCount int
-	var roundDelayCount int
+	// 计算片内交易延迟和跨片交易延迟的平均值
+	var totalItxDelay time.Duration
+	var totalCtxDelay time.Duration
+	var itxDelayCount int
+	var ctxDelayCount int
 
-	// 从 block_delay_channel 获取所有数据
+	// 从 itx_letency_channel 获取所有数据
 	for {
 		select {
-		case delay := <-block_delay_channel:
-			totalBlockDelay += delay
-			blockDelayCount++
+		case delay := <-itx_letency_channel:
+			totalItxDelay += delay
+			itxDelayCount++
 		default:
-			goto blockDelayDone
+			goto itxDelayDone
 		}
 	}
-blockDelayDone:
+itxDelayDone:
 
-	// 从 round_delay_channel 获取所有数据
+	// 从 ctx_latency_channel 获取所有数据
 	for {
 		select {
-		case delay := <-round_delay_channel:
-			totalRoundDelay += delay
-			roundDelayCount++
+		case delay := <-ctx_latency_channel:
+			totalCtxDelay += delay
+			ctxDelayCount++
 		default:
-			goto roundDelayDone
+			goto ctxDelayDone
 		}
 	}
-roundDelayDone:
+ctxDelayDone:
 
 	// 计算平均延迟（转换为毫秒）
-	var avgBlockDelay float64
-	var avgRoundDelay float64
-	if blockDelayCount > 0 {
-		avgBlockDelay = (float64(totalBlockDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(blockDelayCount)
+	var avgItxDelay float64
+	var avgCtxDelay float64
+
+	if itxDelayCount > 0 {
+		avgItxDelay = float64(totalItxDelay.Milliseconds()) / float64(itxDelayCount)
 	}
-	if roundDelayCount > 0 {
-		avgRoundDelay = (float64(totalRoundDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(roundDelayCount)
+	if ctxDelayCount > 0 {
+		avgCtxDelay = float64(totalCtxDelay.Milliseconds()) / float64(ctxDelayCount)
 	}
 
-	/*
-		fmt.Printf("totalBlockDelay: %v\n", totalBlockDelay)
-		fmt.Printf("totalRoundDelay: %v\n", totalRoundDelay)
-		fmt.Printf("totalExtraDelay: %v\n", totalExtraDelay)
+	// 根据是输入分片还是输出分片计算综合延迟
+	var latency float64
+	var avgItxDelayStr, avgCtxDelayStr string
 
-		if blockDelayCount > 0 {
-			avgBlockDelay = (float64(totalBlockDelay.Milliseconds())) / float64(blockDelayCount)
+	if p.Snumber < p.M*2/3 {
+		// 输入分片，只有itx延迟数据
+		if itxDelayCount > 0 {
+			latency = avgItxDelay
+			avgItxDelayStr = fmt.Sprintf("%.2f", avgItxDelay)
+		} else {
+			avgItxDelayStr = "N/A"
 		}
-		if roundDelayCount > 0 {
-			avgRoundDelay = (float64(totalRoundDelay.Milliseconds())) / float64(roundDelayCount)
+		avgCtxDelayStr = "N/A" // 输入分片没有ctx延迟
+	} else {
+		// 输出分片，只有ctx延迟数据
+		if ctxDelayCount > 0 {
+			latency = avgCtxDelay
+			avgCtxDelayStr = fmt.Sprintf("%.2f", avgCtxDelay)
+		} else {
+			avgCtxDelayStr = "N/A"
 		}
-	*/
+		avgItxDelayStr = "N/A" // 输出分片没有itx延迟
+	}
 
-	latency := (1-c.Crate)*avgBlockDelay + c.Crate*(avgBlockDelay+avgRoundDelay)
-
-	// 修改日志消息，添加延迟信息
+	// 修改日志消息，更新延迟信息
 	logMessage := fmt.Sprintf(
 		"Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
 			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
-			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n",
+			"Average Intra-Shard Delay: %s ms\nAverage Cross-Shard Delay: %s ms\nLatency: %.2f ms\n",
 		totalTransactions, internalTransactions, crossShardTransactions,
 		totalTPS, internalTPS, crossShardTPS,
-		avgBlockDelay, avgRoundDelay, latency,
+		avgItxDelayStr, avgCtxDelayStr, latency,
 	)
 	_, err = fmt.Fprintln(file, logMessage)
 	if err != nil {

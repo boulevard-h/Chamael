@@ -68,7 +68,7 @@ func TXs_Inform_Handler(p *party.HonestParty, e uint32, TXsInformChannel chan []
 	}
 }
 
-func KronosSender(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
+func KronosSender(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, itx_letency_channel chan time.Duration, ctx_latency_channel chan time.Duration, WaitTime int) {
 	var TXsInformChannel = make(chan []string, 4096)
 	timeChannel <- time.Now()
 	for e := uint32(1); e <= uint32(epoch); e++ {
@@ -86,10 +86,8 @@ func KronosSender(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 		txs_itx = <-itx_inputChannel
 		txs_in = append(txs_in, txs_itx...)
 
-		TXsInformReceiver_start_time := time.Now()
 		// 接受 TXs_Inform 消息，获取自己为输入分片的交易
 		TXs_Inform_Handler(p, e, TXsInformChannel)
-		extra_delay_channel <- time.Since(TXsInformReceiver_start_time)
 		txs_ctx_in = <-TXsInformChannel
 		txs_in = append(txs_in, txs_ctx_in...)
 
@@ -105,6 +103,7 @@ func KronosSender(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 		if p.Debug {
 			fmt.Printf("Debug: node%d[shard%d] hotstuff done\n", p.PID, p.Snumber)
 		}
+		itx_letency_channel <- time.Since(epoch_start_time)
 
 		txs_out = <-receiveChannel
 		txs_ctx2, txs_itx2 = CategorizeTransactionsByOutputShard(txs_out)
@@ -113,8 +112,6 @@ func KronosSender(p *party.HonestParty, epoch int, itx_inputChannel chan []strin
 		outputChannel <- txs_itx2
 		outputChannel <- txs_ctx2[int(p.Snumber)]
 
-		block_delay_channel <- time.Since(epoch_start_time)
-		round_delay_channel <- time.Since(epoch_start_time)
 		timeChannel <- time.Now()
 	}
 	// time.Sleep(time.Second * 15)

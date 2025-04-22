@@ -19,14 +19,15 @@ func AccumulateTPSStats(dir string) (int, int, int, float64, float64, float64, f
 	totalTPSReg := regexp.MustCompile(`Total TPS:\s*([\d\.]+)`)
 	internalTPSReg := regexp.MustCompile(`Internal TPS:\s*([\d\.]+)`)
 	crossShardTPSReg := regexp.MustCompile(`Cross-Shard TPS:\s*([\d\.]+)`)
-	blockDelayReg := regexp.MustCompile(`Average Block Delay:\s*([\d\.]+)\s*ms`)
-	roundDelayReg := regexp.MustCompile(`Average Round Delay:\s*([\d\.]+)\s*ms`)
+	intraShardDelayReg := regexp.MustCompile(`Average Intra-Shard Delay:\s*([\d\.]+|N/A)\s*ms`)
+	crossShardDelayReg := regexp.MustCompile(`Average Cross-Shard Delay:\s*([\d\.]+|N/A)\s*ms`)
 	latencyReg := regexp.MustCompile(`Latency:\s*([\d\.]+)\s*ms`)
 
 	var totalTransactions, internalTransactions, crossShardTransactions int
 	var totalTPS, internalTPS, crossShardTPS float64
-	var blockDelay, roundDelay, latency float64
-	var fileCount int // 用于计算平均值
+	var intraShardDelay, crossShardDelay, latency float64
+	var intraShardDelayCount, crossShardDelayCount, latencyCount int // 计数有效数据
+	var fileCount int                                                // 用于计算平均值
 
 	// 遍历目录下的所有文件
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -91,17 +92,23 @@ func AccumulateTPSStats(dir string) (int, int, int, float64, float64, float64, f
 					}
 				}
 
-				if matches := blockDelayReg.FindStringSubmatch(line); matches != nil {
-					delay, err := strconv.ParseFloat(matches[1], 64)
-					if err == nil {
-						blockDelay += delay
+				if matches := intraShardDelayReg.FindStringSubmatch(line); matches != nil {
+					if matches[1] != "N/A" {
+						delay, err := strconv.ParseFloat(matches[1], 64)
+						if err == nil {
+							intraShardDelay += delay
+							intraShardDelayCount++
+						}
 					}
 				}
 
-				if matches := roundDelayReg.FindStringSubmatch(line); matches != nil {
-					delay, err := strconv.ParseFloat(matches[1], 64)
-					if err == nil {
-						roundDelay += delay
+				if matches := crossShardDelayReg.FindStringSubmatch(line); matches != nil {
+					if matches[1] != "N/A" {
+						delay, err := strconv.ParseFloat(matches[1], 64)
+						if err == nil {
+							crossShardDelay += delay
+							crossShardDelayCount++
+						}
 					}
 				}
 
@@ -109,6 +116,7 @@ func AccumulateTPSStats(dir string) (int, int, int, float64, float64, float64, f
 					l, err := strconv.ParseFloat(matches[1], 64)
 					if err == nil {
 						latency += l
+						latencyCount++
 					}
 				}
 			}
@@ -124,14 +132,24 @@ func AccumulateTPSStats(dir string) (int, int, int, float64, float64, float64, f
 		return 0, 0, 0, 0, 0, 0, 0, 0, 0, err
 	}
 
-	// 计算平均值
-	if fileCount > 0 {
-		blockDelay /= float64(fileCount)
-		roundDelay /= float64(fileCount)
-		latency /= float64(fileCount)
+	// 计算平均值 - 只有在有数据的情况下计算
+	if intraShardDelayCount > 0 {
+		intraShardDelay /= float64(intraShardDelayCount)
+	} else {
+		intraShardDelay = -1 // 使用-1表示无数据
 	}
 
-	return totalTransactions, internalTransactions, crossShardTransactions, totalTPS, internalTPS, crossShardTPS, blockDelay, roundDelay, latency, nil
+	if crossShardDelayCount > 0 {
+		crossShardDelay /= float64(crossShardDelayCount)
+	} else {
+		crossShardDelay = -1 // 使用-1表示无数据
+	}
+
+	if latencyCount > 0 {
+		latency /= float64(latencyCount)
+	}
+
+	return totalTransactions, internalTransactions, crossShardTransactions, totalTPS, internalTPS, crossShardTPS, intraShardDelay, crossShardDelay, latency, nil
 }
 
 func main() {
@@ -141,12 +159,28 @@ func main() {
 		return
 	}
 
-	totalTx, internalTx, crossShardTx, totalTps, internalTps, crossShardTps, blockDelay, roundDelay, latency, err := AccumulateTPSStats(homeDir + "/Chamael/log/")
+	totalTx, internalTx, crossShardTx, totalTps, internalTps, crossShardTps, intraShardDelay, crossShardDelay, latency, err := AccumulateTPSStats(homeDir + "/Chamael/log/")
 	if err != nil {
 		fmt.Println("Error accumulating stats:", err)
 	} else {
 		fmt.Printf("Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n", totalTx, internalTx, crossShardTx)
 		fmt.Printf("Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n", totalTps, internalTps, crossShardTps)
-		fmt.Printf("Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n", blockDelay, roundDelay, latency)
+
+		// 输出延迟信息，处理可能无数据的情况
+		fmt.Printf("Average Intra-Shard Delay: ")
+		if intraShardDelay >= 0 {
+			fmt.Printf("%.2f ms\n", intraShardDelay)
+		} else {
+			fmt.Println("N/A")
+		}
+
+		fmt.Printf("Average Cross-Shard Delay: ")
+		if crossShardDelay >= 0 {
+			fmt.Printf("%.2f ms\n", crossShardDelay)
+		} else {
+			fmt.Println("N/A")
+		}
+
+		fmt.Printf("Latency: %.2f ms\n", latency)
 	}
 }

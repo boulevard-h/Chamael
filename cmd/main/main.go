@@ -107,21 +107,20 @@ func main() {
 	}
 
 	timeChannel := make(chan time.Time, 4096)
-	block_delay_channel := make(chan time.Duration, 4096)
-	round_delay_channel := make(chan time.Duration, 4096)
-	extra_delay_channel := make(chan time.Duration, 4096)
+	itx_letency_channel := make(chan time.Duration, 4096)
+	ctx_latency_channel := make(chan time.Duration, 4096)
 	if p.M%3 != 0 {
 		log.Fatalln("M must be divisible by 3")
 	}
 	if p.Snumber < p.M*2/3 {
-		go bft.KronosSender(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+		go bft.KronosSender(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, itx_letency_channel, ctx_latency_channel, c.WaitTime)
 	} else {
-		go bft.KronosRecver(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+		go bft.KronosRecver(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, itx_letency_channel, ctx_latency_channel, c.WaitTime)
 	}
 
 	// time.Sleep(time.Second * 15)
 	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))
-	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
+	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, itx_letency_channel, ctx_latency_channel)
 	if p.Debug {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
 	}
