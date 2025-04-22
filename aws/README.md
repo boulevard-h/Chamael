@@ -69,7 +69,7 @@ chmod 777 env-batch.sh
 
 #### （3）运行与获取日志数据
 
-##### kronos
+##### kronos-NG
 
 * 编辑`aws-run.txt`：
 
@@ -87,59 +87,4 @@ chmod 777 env-batch.sh
   go run ./cmd/performance/performanceCal.go
   ```
 
-​	获取正常执行流程中的TPS和时延数据。
-
-##### NL
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_NLTest.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
-
-##### NS
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_NSTest.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
-
-##### Re
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_ReConfig.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
-
+​	获取正常执行流程中的TPS和时延数据
