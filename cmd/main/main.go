@@ -110,8 +110,14 @@ func main() {
 	block_delay_channel := make(chan time.Duration, 4096)
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
-	//timeChannel <- time.Now()
-	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+	if p.M%3 != 0 {
+		log.Fatalln("M must be divisible by 3")
+	}
+	if p.Snumber < p.M*2/3 {
+		go bft.KronosSender(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+	} else {
+		go bft.KronosRecver(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+	}
 
 	// time.Sleep(time.Second * 15)
 	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))

@@ -50,37 +50,32 @@ func InterTxGenerator(size int, shardID int, PID int, chars string) string {
 }
 func CrossTxGenerator(size, shardNum, Rrate int, PID int, chars string) string {
 
-	// Determine the number of input shards
-	inputShardNum := rand.Intn(3) + 1
-	if inputShardNum >= shardNum {
-		inputShardNum = shardNum - 1
+	// 检查分片数是否能被3整除
+	if shardNum%3 != 0 {
+		panic(fmt.Sprintf("分片数量必须能被3整除，当前分片数为: %d", shardNum))
 	}
 
-	// Select input shards
-	inputShards := randomSample(0, shardNum, inputShardNum)
+	// 计算输入分片和输出分片的分界线
+	inputShardMax := (shardNum * 2) / 3
+	outputShardMin := inputShardMax
 
-	// Generate input validity
+	// 固定使用2个输入分片
+	inputShardNum := 2
+	if inputShardMax < 2 {
+		panic("分片总数太少，无法满足2输入-1输出的要求")
+	}
+
+	// 从前2/3的分片中选择2个输入分片
+	inputShards := randomSample(0, inputShardMax, inputShardNum)
+
+	// 所有输入都是有效的（合法交易）
 	inputValid := make([]int, inputShardNum)
 	for i := range inputValid {
-		/*
-			if rand.Intn(100) < Rrate {
-				inputValid[i] = 1
-			} else {
-				inputValid[i] = 0
-			}
-		*/
-		inputValid[i] = 1 //目前只考虑合法交易
+		inputValid[i] = 1 // 目前只考虑合法交易
 	}
 
-	// Choose output shard
-	outputShard := -1
-	for {
-		candidate := rand.Intn(shardNum)
-		if !contains(inputShards, candidate) {
-			outputShard = candidate
-			break
-		}
-	}
+	// 从后1/3的分片中选择一个作为输出分片
+	outputShard := rand.Intn(shardNum-outputShardMin) + outputShardMin
 
 	randomString := randomString(size, chars)
 	shardInfo := fmt.Sprintf(", Userset: %d, Input Shard: %v, Input Valid: %v, Output Shard: %d, Output Valid: 0",
