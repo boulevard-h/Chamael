@@ -7,5 +7,6 @@ sudo apt install -y golang
 cd /home/ubuntu
 git clone https://github.com/hidden-er/Chamael.git
 cd Chamael
+git checkout kronos-ng
 #go env -w GOPROXY=https://goproxy.cn,direct
 go mod tidy
