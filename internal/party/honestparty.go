@@ -30,6 +30,10 @@ type HonestParty struct {
 
 	PK []kyber.Point
 	SK kyber.Scalar
+
+	// 通信量统计，单位为MB
+	IntraShardTraffic float64 // 片内通信量
+	CrossShardTraffic float64 // 跨片通信量
 }
 
 func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool) *HonestParty {
@@ -49,18 +53,20 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 	}
 
 	p := HonestParty{
-		N:            N,
-		F:            F,
-		M:            m, //分片个数
-		PID:          pid,
-		Snumber:      snum, //节点所在的分片编号
-		SID:          sid,  //节点在分片内的编号
-		ipList:       ipList,
-		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N*m), //N改成N*m ！
-		PK:           points,
-		SK:           scalar,
-		Debug:        Debug,
+		N:                 N,
+		F:                 F,
+		M:                 m, //分片个数
+		PID:               pid,
+		Snumber:           snum, //节点所在的分片编号
+		SID:               sid,  //节点在分片内的编号
+		ipList:            ipList,
+		portList:          portList,
+		sendChannels:      make([]chan *protobuf.Message, N*m), //N改成N*m ！
+		PK:                points,
+		SK:                scalar,
+		Debug:             Debug,
+		IntraShardTraffic: 0,
+		CrossShardTraffic: 0,
 	}
 
 	return &p
@@ -95,6 +101,22 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 		return errors.New("This party hasn't been initialized")
 	}
 	if des < p.N*p.M {
+		// 计算消息大小并转换为MB
+		// 估算消息大小：Type(字符串) + ID(字节切片) + sender(4字节) + data(字节切片)
+		messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024) // 转换为MB
+
+		// 判断目标节点是否与当前节点在同一分片内
+		desShard := des / p.N // 计算目标节点所在的分片编号
+
+		// 统计通信量
+		if desShard == p.Snumber {
+			// 片内通信
+			p.IntraShardTraffic += messageSize
+		} else {
+			// 跨片通信
+			p.CrossShardTraffic += messageSize
+		}
+
 		p.sendChannels[des] <- m
 		return nil
 	}
