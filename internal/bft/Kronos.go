@@ -196,7 +196,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		receiveChannel := make(chan []string, 4096)
 		inputChannel <- txs_in
 
-		HotStuffProcess(p, int(e), inputChannel, receiveChannel, false)
+		HotStuffProcess(p, int(e), inputChannel, receiveChannel)
 		txs_out = <-receiveChannel
 		txs_ctx2, txs_itx2 = CategorizeTransactionsByOutputShard(txs_out)
 

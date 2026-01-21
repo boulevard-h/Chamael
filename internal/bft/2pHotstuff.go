@@ -14,17 +14,11 @@ import (
 )
 
 // 收集足量的New_View消息后广播Prepare消息
-func Prepare_BroadCast(p *party.HonestParty, e uint32, txs []string, isGlobal bool) {
+func Prepare_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 	var l []int
 	seen := make(map[int]bool)
 
-	var threshold int
-	if isGlobal {
-		F := (int(p.N*p.M) - 1) / 3
-		threshold = 2*F + 1
-	} else {
-		threshold = 2*int(p.F) + 1
-	}
+	threshold := 2*int(p.F) + 1
 
 	for {
 		if (len(l) >= threshold) || (e == 1) {
@@ -40,29 +34,19 @@ func Prepare_BroadCast(p *party.HonestParty, e uint32, txs []string, isGlobal bo
 	PrepareMessage := core.Encapsulation("Prepare", utils.Uint32ToBytes(e), p.PID, &protobuf.Prepare{
 		Txs: txs,
 	})
-	if isGlobal {
-		p.Broadcast(PrepareMessage)
-	} else {
-		p.Intra_Broadcast(PrepareMessage)
-	}
+	p.Intra_Broadcast(PrepareMessage)
 
 }
 
 // 收集足量的Prepare_Vote消息,验证AggSig1(txs||vote1||epoch)后广播Precommit消息
-func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string, isGlobal bool) {
+func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 	suite := bn256.NewSuite()
 	var l []int
 	seen := make(map[int]bool)
 	var signatures [][]byte
 	var pubkeys []kyber.Point
 
-	var threshold int
-	if isGlobal {
-		F := (int(p.N*p.M) - 1) / 3
-		threshold = 2*F + 1
-	} else {
-		threshold = 2*int(p.F) + 1
-	}
+	threshold := 2*int(p.F) + 1
 
 	for {
 		m := <-p.GetMessage("Prepare_Vote", utils.Uint32ToBytes(e))
@@ -90,28 +74,18 @@ func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string, isGlobal 
 		Aggsig: aggSig,
 		Aggpk:  utils.PointToBytes(aggPubKey),
 	})
-	if isGlobal {
-		p.Broadcast(PrecommitMessage)
-	} else {
-		p.Intra_Broadcast(PrecommitMessage)
-	}
+	p.Intra_Broadcast(PrecommitMessage)
 }
 
 // 收集足量的Precommit_Vote消息,验证AggSig2(vote2||epoch)后广播Commit消息
-func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChannel chan []string, isGlobal bool) {
+func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChannel chan []string) {
 	suite := bn256.NewSuite()
 	var l []int
 	seen := make(map[int]bool)
 	var signatures [][]byte
 	var pubkeys []kyber.Point
 
-	var threshold int
-	if isGlobal {
-		F := (int(p.N*p.M) - 1) / 3
-		threshold = 2*F + 1
-	} else {
-		threshold = 2*int(p.F) + 1
-	}
+	threshold := 2*int(p.F) + 1
 
 	for {
 		m := <-p.GetMessage("Precommit_Vote", utils.Uint32ToBytes(e))
@@ -139,16 +113,12 @@ func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChanne
 		Aggsig: aggSig,
 		Aggpk:  utils.PointToBytes(aggPubKey),
 	})
-	if isGlobal {
-		p.Broadcast(CommitMessage)
-	} else {
-		p.Intra_Broadcast(CommitMessage)
-	}
+	p.Intra_Broadcast(CommitMessage)
 	outputChannel <- txs
 }
 
-// isGlobal: true 全局共识, false 片内共识
-func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string, outputChannel chan []string, isGlobal bool) {
+// HotStuffProcess 仅执行片内共识 (Intra-Shard BFT)
+func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string, outputChannel chan []string) {
 	suite := bn256.NewSuite()
 	e := uint32(epoch)
 	var txs []string //处理自己作为Leader时提议的交易集合;从inputchannel来,所以是[]String
@@ -158,25 +128,19 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 
 	// 判断是否是Leader
 	var is_leader bool = false
-	if isGlobal { // 全局共识，选择 PID = (e-1)%(N*M)
-		if (e-1)%(p.N*p.M) == p.PID {
-			is_leader = true
-			txs = <-inputChannel
-		}
-	} else { // 片内共识，选择 SID = (e-1)%N
-		if (e-1)%p.N == p.SID {
-			is_leader = true
-			txs = <-inputChannel
-		}
+	// 片内共识，选择 SID = (e-1)%N
+	if (e-1)%p.N == p.SID {
+		is_leader = true
+		txs = <-inputChannel
 	}
 
 	if is_leader == true { //自己作为领导者时
 		//收集足量的New_View消息后广播Prepare消息
-		Prepare_BroadCast(p, e, txs, isGlobal)
+		Prepare_BroadCast(p, e, txs)
 		//收集足量的Prepare_Vote消息,验证AggSig1(txs||vote1||epoch)后广播Precommit消息
-		Precommit_BroadCast(p, e, txs, isGlobal)
+		Precommit_BroadCast(p, e, txs)
 		//收集足量的Precommit_Vote消息,验证AggSig2(vote2||epoch)后广播Commit消息并把Txs放入输出通道
-		Commit_BroadCast(p, e, txs, outputChannel, isGlobal)
+		Commit_BroadCast(p, e, txs, outputChannel)
 
 	} else { //自己作为普通参与节点时
 	Loop:
@@ -250,11 +214,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				New_ViewMessage := core.Encapsulation("New_View", utils.Uint32ToBytes(e+1), p.PID, &protobuf.New_View{
 					None: make([]byte, 0),
 				})
-				if isGlobal {
-					p.Broadcast(New_ViewMessage)
-				} else {
-					p.Intra_Broadcast(New_ViewMessage)
-				}
+				p.Intra_Broadcast(New_ViewMessage)
 				outputChannel <- txs
 				break Loop
 			}
