@@ -25,13 +25,13 @@ func Prepare_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 			fmt.Println("New View ", e, "start")
 			break
 		}
-		m := <-p.GetMessage("New_View", utils.Uint32ToBytes(e))
+		m := <-p.GetMessage("HS_New_View", utils.Uint32ToBytes(e))
 		if !seen[int(m.Sender)] {
 			l = append(l, int(m.Sender))
 			seen[int(m.Sender)] = true
 		}
 	}
-	PrepareMessage := core.Encapsulation("Prepare", utils.Uint32ToBytes(e), p.PID, &protobuf.Prepare{
+	PrepareMessage := core.Encapsulation("HS_Prepare", utils.Uint32ToBytes(e), p.PID, &protobuf.HS_Prepare{
 		Txs: txs,
 	})
 	p.Intra_Broadcast(PrepareMessage)
@@ -49,8 +49,8 @@ func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 	threshold := 2*int(p.F) + 1
 
 	for {
-		m := <-p.GetMessage("Prepare_Vote", utils.Uint32ToBytes(e))
-		payload := (core.Decapsulation("Prepare_Vote", m)).(*protobuf.Prepare_Vote)
+		m := <-p.GetMessage("HS_Prepare_Vote", utils.Uint32ToBytes(e))
+		payload := (core.Decapsulation("HS_Prepare_Vote", m)).(*protobuf.HS_Prepare_Vote)
 		if !seen[int(m.Sender)] {
 			l = append(l, int(m.Sender))
 			seen[int(m.Sender)] = true
@@ -70,7 +70,7 @@ func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 		return
 	}
 
-	PrecommitMessage := core.Encapsulation("Precommit", utils.Uint32ToBytes(e), p.PID, &protobuf.Precommit{
+	PrecommitMessage := core.Encapsulation("HS_Precommit", utils.Uint32ToBytes(e), p.PID, &protobuf.HS_Precommit{
 		Aggsig: aggSig,
 		Aggpk:  utils.PointToBytes(aggPubKey),
 	})
@@ -88,8 +88,8 @@ func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChanne
 	threshold := 2*int(p.F) + 1
 
 	for {
-		m := <-p.GetMessage("Precommit_Vote", utils.Uint32ToBytes(e))
-		payload := (core.Decapsulation("Precommit_Vote", m)).(*protobuf.Precommit_Vote)
+		m := <-p.GetMessage("HS_Precommit_Vote", utils.Uint32ToBytes(e))
+		payload := (core.Decapsulation("HS_Precommit_Vote", m)).(*protobuf.HS_Precommit_Vote)
 		if !seen[int(m.Sender)] {
 			l = append(l, int(m.Sender))
 			seen[int(m.Sender)] = true
@@ -109,7 +109,7 @@ func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChanne
 		return
 	}
 
-	CommitMessage := core.Encapsulation("Commit", utils.Uint32ToBytes(e), p.PID, &protobuf.Commit{
+	CommitMessage := core.Encapsulation("HS_Commit", utils.Uint32ToBytes(e), p.PID, &protobuf.HS_Commit{
 		Aggsig: aggSig,
 		Aggpk:  utils.PointToBytes(aggPubKey),
 	})
@@ -147,8 +147,8 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 		for {
 			select {
 			//收到Prepare消息,签sig1(txs||vote1||epoch)并回复Prepare_Vote消息
-			case m := <-p.GetMessage("Prepare", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("Prepare", m)).(*protobuf.Prepare)
+			case m := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e)):
+				payload := (core.Decapsulation("HS_Prepare", m)).(*protobuf.HS_Prepare)
 				txs = payload.Txs
 				Txs = []byte(strings.Join(txs, ""))
 				var vote uint32
@@ -156,19 +156,19 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				smessage := utils.MessageEncap([][]byte{Txs, utils.Uint32ToBytes(vote), utils.Uint32ToBytes(e)})
 
 				sigPrepare, _ := bls.Sign(suite, p.SK, smessage) //sign(txs||vote1||epoch)
-				Prepare_VoteMessage := core.Encapsulation("Prepare_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.Prepare_Vote{
+				Prepare_VoteMessage := core.Encapsulation("HS_Prepare_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.HS_Prepare_Vote{
 					Vote: vote,
 					Sig:  sigPrepare,
 				})
 				p.Send(Prepare_VoteMessage, m.Sender)
 				gotPrepare = true
 			//收到Precommit消息,验证aggsig1(txs||vote1||epoch),签sig2(vote2||epoch)并回复Precommit_Vote消息
-			case m := <-p.GetMessage("Precommit", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("Precommit", m)).(*protobuf.Precommit)
+			case m := <-p.GetMessage("HS_Precommit", utils.Uint32ToBytes(e)):
+				payload := (core.Decapsulation("HS_Precommit", m)).(*protobuf.HS_Precommit)
 
 				if !gotPrepare {
-					mPrepare := <-p.GetMessage("Prepare", utils.Uint32ToBytes(e))
-					payloadPrepare := (core.Decapsulation("Prepare", mPrepare)).(*protobuf.Prepare)
+					mPrepare := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e))
+					payloadPrepare := (core.Decapsulation("HS_Prepare", mPrepare)).(*protobuf.HS_Prepare)
 					txs = payloadPrepare.Txs
 					Txs = []byte(strings.Join(txs, ""))
 					gotPrepare = true
@@ -187,18 +187,18 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				smessage := utils.MessageEncap([][]byte{utils.Uint32ToBytes(vote), utils.Uint32ToBytes(e)})
 
 				sigPrecommit, _ := bls.Sign(suite, p.SK, smessage) //sign(vote2||epoch)
-				Precommit_VoteMessage := core.Encapsulation("Precommit_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.Precommit_Vote{
+				Precommit_VoteMessage := core.Encapsulation("HS_Precommit_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.HS_Precommit_Vote{
 					Vote: vote,
 					Sig:  sigPrecommit,
 				})
 				p.Send(Precommit_VoteMessage, m.Sender)
 			//收到Commit消息,验证aggsig2(vote2||epoch)并回复New_View消息;
-			case m := <-p.GetMessage("Commit", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("Commit", m)).(*protobuf.Commit)
+			case m := <-p.GetMessage("HS_Commit", utils.Uint32ToBytes(e)):
+				payload := (core.Decapsulation("HS_Commit", m)).(*protobuf.HS_Commit)
 
 				if !gotPrepare {
-					mPrepare := <-p.GetMessage("Prepare", utils.Uint32ToBytes(e))
-					payloadPrepare := (core.Decapsulation("Prepare", mPrepare)).(*protobuf.Prepare)
+					mPrepare := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e))
+					payloadPrepare := (core.Decapsulation("HS_Prepare", mPrepare)).(*protobuf.HS_Prepare)
 					txs = payloadPrepare.Txs
 					gotPrepare = true
 				}
@@ -211,7 +211,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 					return
 				}
 
-				New_ViewMessage := core.Encapsulation("New_View", utils.Uint32ToBytes(e+1), p.PID, &protobuf.New_View{
+				New_ViewMessage := core.Encapsulation("HS_New_View", utils.Uint32ToBytes(e+1), p.PID, &protobuf.HS_New_View{
 					None: make([]byte, 0),
 				})
 				p.Intra_Broadcast(New_ViewMessage)

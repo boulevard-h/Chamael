@@ -36,3 +36,4 @@ WaitTime: 90
 Txnum: 20000
 Crate: 0.1
 TestEpochs: 5
+IntraConsensus: rbc

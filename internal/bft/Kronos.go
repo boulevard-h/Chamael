@@ -4,6 +4,7 @@ import (
 	"Chamael/internal/party"
 	"Chamael/pkg/txs"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -22,9 +23,10 @@ func isInternalTx(tx string) bool {
 	return true
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
+func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
 	timeChannel <- time.Now()
 	for e := uint32(1); e <= uint32(epoch); e++ {
+		fmt.Println("Start Epoch", e)
 		epoch_start_time := time.Now()
 
 		txs_in := append([]string{}, (<-itx_inputChannel)...)
@@ -34,7 +36,12 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		receiveChannel := make(chan []string, 1)
 		inputChannel <- txs_in
 
-		HotStuffProcess(p, int(e), inputChannel, receiveChannel)
+		switch strings.ToLower(intraConsensus) {
+		case "rbc":
+			RBCProcess(p, int(e), inputChannel, receiveChannel, nil)
+		default:
+			HotStuffProcess(p, int(e), inputChannel, receiveChannel)
+		}
 		txs_out := <-receiveChannel
 
 		var innerShardTxs []string

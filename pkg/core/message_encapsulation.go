@@ -13,18 +13,25 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 	var err error
 	switch messageType {
 
-	case "New_View":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.New_View))
-	case "Prepare":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Prepare))
-	case "Prepare_Vote":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Prepare_Vote))
-	case "Precommit":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Precommit))
-	case "Precommit_Vote":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Precommit_Vote))
-	case "Commit":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Commit))
+	case "HS_New_View":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_New_View))
+	case "HS_Prepare":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Prepare))
+	case "HS_Prepare_Vote":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Prepare_Vote))
+	case "HS_Precommit":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Precommit))
+	case "HS_Precommit_Vote":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Precommit_Vote))
+	case "HS_Commit":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Commit))
+
+	case "RBC_Propose":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Propose))
+	case "RBC_Echo":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Echo))
+	case "RBC_Ready":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Ready))
 
 	}
 
@@ -42,28 +49,41 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 // Decapsulation decapsulates a message to it's original type
 func Decapsulation(messageType string, m *protobuf.Message) any {
 	switch messageType {
-	case "New_View":
-		var payloadMessage protobuf.New_View
+	case "HS_New_View":
+		var payloadMessage protobuf.HS_New_View
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
-	case "Prepare":
-		var payloadMessage protobuf.Prepare
+	case "HS_Prepare":
+		var payloadMessage protobuf.HS_Prepare
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
-	case "Prepare_Vote":
-		var payloadMessage protobuf.Prepare_Vote
+	case "HS_Prepare_Vote":
+		var payloadMessage protobuf.HS_Prepare_Vote
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
-	case "Precommit":
-		var payloadMessage protobuf.Precommit
+	case "HS_Precommit":
+		var payloadMessage protobuf.HS_Precommit
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
-	case "Precommit_Vote":
-		var payloadMessage protobuf.Precommit_Vote
+	case "HS_Precommit_Vote":
+		var payloadMessage protobuf.HS_Precommit_Vote
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
-	case "Commit":
-		var payloadMessage protobuf.Commit
+	case "HS_Commit":
+		var payloadMessage protobuf.HS_Commit
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+
+	case "RBC_Propose":
+		var payloadMessage protobuf.RBC_Propose
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "RBC_Echo":
+		var payloadMessage protobuf.RBC_Echo
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "RBC_Ready":
+		var payloadMessage protobuf.RBC_Ready
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 

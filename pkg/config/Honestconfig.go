@@ -36,6 +36,9 @@ type HonestConfig struct {
 	WaitTime    int `yaml:"WaitTime"`
 
 	TestEpochs int `yaml:"TestEpochs"`
+
+	// intra-shard consensus: "hotstuff" (default) or "rbc"
+	IntraConsensus string `yaml:"IntraConsensus"`
 }
 
 func NewHonestConfig(configName string, isLocal bool) (HonestConfig, error) {

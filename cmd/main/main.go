@@ -111,7 +111,7 @@ func main() {
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
-	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
+	go bft.KronosProcess(p, c.TestEpochs, c.IntraConsensus, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
 
 	// time.Sleep(time.Second * 15)
 	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))
