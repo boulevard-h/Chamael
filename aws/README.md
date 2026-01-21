@@ -10,7 +10,7 @@ sudo apt install dos2unix
 dos2unix env-batch.sh
 chmod 777 env-batch.sh
 ./env-batch.sh
-#测试Chamael四个测试的运行情况（go编译）
+#测试Chamael运行情况（go编译）
 #关机存映像，用该映像重启服务器，存模版
 ```
 
@@ -52,8 +52,6 @@ chmod 777 env-batch.sh
   ```shell
   #刚需
   go run ./cmd/configMaker/configMaker.go -config_path ./cmd/main/config_local.yaml
-  #用于NS测试 (<NSShard>发生分叉的分片编号)
-  go run cmd/eviMaker/eviMaker.go <N> <F> <M> <NSShard>
   ```
 
 * 在**Chamael中控的/home/ubuntu目录下**运行	
@@ -63,9 +61,7 @@ chmod 777 env-batch.sh
   ./aws-pre.txt
   ```
 
-​	向各个节点服务器的**Chamael/configs/\* **和 **Chamael/cmd/noSafety/NS.yaml** 传入**一致的**配置文件。
-
-​	`NS.yaml`与`configs/*`内容相关联，每次都需重新生成；`NL.yaml`和`RC.yaml`只需各节点一致即可，可以一直沿用模版中的。
+​	向各个节点服务器的**Chamael/configs/\* **传入**一致的**配置文件。
 
 #### （3）运行与获取日志数据
 
@@ -88,58 +84,4 @@ chmod 777 env-batch.sh
   ```
 
 ​	获取正常执行流程中的TPS和时延数据。
-
-##### NL
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_NLTest.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
-
-##### NS
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_NSTest.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
-
-##### Re
-
-* 编辑`aws-run.txt`：
-
-  ```shell
-   ./start_ReConfig.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
-  ```
-
-​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
-
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
-
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
-
-  ```shell
-  go run ./cmd/duration/durationCal.go
-  ```
 
