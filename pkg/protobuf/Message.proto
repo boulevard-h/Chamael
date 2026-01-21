@@ -33,23 +33,3 @@ message Commit{
   bytes aggsig = 1;
   bytes aggpk = 2;
 }
-
-//Chamael-kronos使用的消息类型
-message TXs_Inform{
-  repeated string txs = 1;
-}
-message Sig_Inform{
-  bytes none = 1;
-}
-message Sigmsg{
-  bytes root = 1;
-  bytes sig = 2;
-}
-message InputBFT_Result{
-  repeated string txs = 1;
-  bytes root = 2;
-  repeated bytes path = 3;
-  repeated int64 indicator =4;
-  bytes aggsig = 5;
-  bytes aggpk = 6;
-}

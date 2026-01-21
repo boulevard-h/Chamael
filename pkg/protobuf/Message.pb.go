@@ -88,7 +88,7 @@ func (x *Message) GetData() []byte {
 	return nil
 }
 
-//Chamael-2pHotstuff使用的消息类型
+// Chamael-2pHotstuff使用的消息类型
 type New_View struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	None          []byte                 `protobuf:"bytes,1,opt,name=none,proto3" json:"none,omitempty"`
@@ -385,231 +385,6 @@ func (x *Commit) GetAggpk() []byte {
 	return nil
 }
 
-// Chamael-kronos使用的消息类型
-type TXs_Inform struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Txs           []string               `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TXs_Inform) Reset() {
-	*x = TXs_Inform{}
-	mi := &file_Message_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TXs_Inform) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TXs_Inform) ProtoMessage() {}
-
-func (x *TXs_Inform) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TXs_Inform.ProtoReflect.Descriptor instead.
-func (*TXs_Inform) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *TXs_Inform) GetTxs() []string {
-	if x != nil {
-		return x.Txs
-	}
-	return nil
-}
-
-type Sig_Inform struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	None          []byte                 `protobuf:"bytes,1,opt,name=none,proto3" json:"none,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Sig_Inform) Reset() {
-	*x = Sig_Inform{}
-	mi := &file_Message_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Sig_Inform) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Sig_Inform) ProtoMessage() {}
-
-func (x *Sig_Inform) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Sig_Inform.ProtoReflect.Descriptor instead.
-func (*Sig_Inform) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *Sig_Inform) GetNone() []byte {
-	if x != nil {
-		return x.None
-	}
-	return nil
-}
-
-type Sigmsg struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Root          []byte                 `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
-	Sig           []byte                 `protobuf:"bytes,2,opt,name=sig,proto3" json:"sig,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Sigmsg) Reset() {
-	*x = Sigmsg{}
-	mi := &file_Message_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Sigmsg) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Sigmsg) ProtoMessage() {}
-
-func (x *Sigmsg) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Sigmsg.ProtoReflect.Descriptor instead.
-func (*Sigmsg) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *Sigmsg) GetRoot() []byte {
-	if x != nil {
-		return x.Root
-	}
-	return nil
-}
-
-func (x *Sigmsg) GetSig() []byte {
-	if x != nil {
-		return x.Sig
-	}
-	return nil
-}
-
-type InputBFT_Result struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Txs           []string               `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
-	Root          []byte                 `protobuf:"bytes,2,opt,name=root,proto3" json:"root,omitempty"`
-	Path          [][]byte               `protobuf:"bytes,3,rep,name=path,proto3" json:"path,omitempty"`
-	Indicator     []int64                `protobuf:"varint,4,rep,packed,name=indicator,proto3" json:"indicator,omitempty"`
-	Aggsig        []byte                 `protobuf:"bytes,5,opt,name=aggsig,proto3" json:"aggsig,omitempty"`
-	Aggpk         []byte                 `protobuf:"bytes,6,opt,name=aggpk,proto3" json:"aggpk,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InputBFT_Result) Reset() {
-	*x = InputBFT_Result{}
-	mi := &file_Message_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InputBFT_Result) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InputBFT_Result) ProtoMessage() {}
-
-func (x *InputBFT_Result) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InputBFT_Result.ProtoReflect.Descriptor instead.
-func (*InputBFT_Result) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *InputBFT_Result) GetTxs() []string {
-	if x != nil {
-		return x.Txs
-	}
-	return nil
-}
-
-func (x *InputBFT_Result) GetRoot() []byte {
-	if x != nil {
-		return x.Root
-	}
-	return nil
-}
-
-func (x *InputBFT_Result) GetPath() [][]byte {
-	if x != nil {
-		return x.Path
-	}
-	return nil
-}
-
-func (x *InputBFT_Result) GetIndicator() []int64 {
-	if x != nil {
-		return x.Indicator
-	}
-	return nil
-}
-
-func (x *InputBFT_Result) GetAggsig() []byte {
-	if x != nil {
-		return x.Aggsig
-	}
-	return nil
-}
-
-func (x *InputBFT_Result) GetAggpk() []byte {
-	if x != nil {
-		return x.Aggpk
-	}
-	return nil
-}
-
 var File_Message_proto protoreflect.FileDescriptor
 
 const file_Message_proto_rawDesc = "" +
@@ -635,23 +410,7 @@ const file_Message_proto_rawDesc = "" +
 	"\x03sig\x18\x02 \x01(\fR\x03sig\"6\n" +
 	"\x06Commit\x12\x16\n" +
 	"\x06aggsig\x18\x01 \x01(\fR\x06aggsig\x12\x14\n" +
-	"\x05aggpk\x18\x02 \x01(\fR\x05aggpk\"\x1e\n" +
-	"\n" +
-	"TXs_Inform\x12\x10\n" +
-	"\x03txs\x18\x01 \x03(\tR\x03txs\" \n" +
-	"\n" +
-	"Sig_Inform\x12\x12\n" +
-	"\x04none\x18\x01 \x01(\fR\x04none\".\n" +
-	"\x06Sigmsg\x12\x12\n" +
-	"\x04root\x18\x01 \x01(\fR\x04root\x12\x10\n" +
-	"\x03sig\x18\x02 \x01(\fR\x03sig\"\x97\x01\n" +
-	"\x0fInputBFT_Result\x12\x10\n" +
-	"\x03txs\x18\x01 \x03(\tR\x03txs\x12\x12\n" +
-	"\x04root\x18\x02 \x01(\fR\x04root\x12\x12\n" +
-	"\x04path\x18\x03 \x03(\fR\x04path\x12\x1c\n" +
-	"\tindicator\x18\x04 \x03(\x03R\tindicator\x12\x16\n" +
-	"\x06aggsig\x18\x05 \x01(\fR\x06aggsig\x12\x14\n" +
-	"\x05aggpk\x18\x06 \x01(\fR\x05aggpkB\vZ\t/protobufb\x06proto3"
+	"\x05aggpk\x18\x02 \x01(\fR\x05aggpkB\vZ\t/protobufb\x06proto3"
 
 var (
 	file_Message_proto_rawDescOnce sync.Once
@@ -665,19 +424,15 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_Message_proto_goTypes = []any{
-	(*Message)(nil),         // 0: Message
-	(*New_View)(nil),        // 1: New_View
-	(*Prepare)(nil),         // 2: Prepare
-	(*Prepare_Vote)(nil),    // 3: Prepare_Vote
-	(*Precommit)(nil),       // 4: Precommit
-	(*Precommit_Vote)(nil),  // 5: Precommit_Vote
-	(*Commit)(nil),          // 6: Commit
-	(*TXs_Inform)(nil),      // 7: TXs_Inform
-	(*Sig_Inform)(nil),      // 8: Sig_Inform
-	(*Sigmsg)(nil),          // 9: Sigmsg
-	(*InputBFT_Result)(nil), // 10: InputBFT_Result
+	(*Message)(nil),        // 0: Message
+	(*New_View)(nil),       // 1: New_View
+	(*Prepare)(nil),        // 2: Prepare
+	(*Prepare_Vote)(nil),   // 3: Prepare_Vote
+	(*Precommit)(nil),      // 4: Precommit
+	(*Precommit_Vote)(nil), // 5: Precommit_Vote
+	(*Commit)(nil),         // 6: Commit
 }
 var file_Message_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -693,14 +448,14 @@ func file_Message_proto_init() {
 		return
 	}
 	type x struct{}
-		out := protoimpl.TypeBuilder{
-			File: protoimpl.DescBuilder{
-				GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-				RawDescriptor: []byte(file_Message_proto_rawDesc),
-				NumEnums:      0,
-				NumMessages:   11,
-				NumExtensions: 0,
-				NumServices:   0,
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+			RawDescriptor: []byte(file_Message_proto_rawDesc),
+			NumEnums:      0,
+			NumMessages:   7,
+			NumExtensions: 0,
+			NumServices:   0,
 		},
 		GoTypes:           file_Message_proto_goTypes,
 		DependencyIndexes: file_Message_proto_depIdxs,

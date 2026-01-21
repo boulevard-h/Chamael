@@ -26,15 +26,6 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 	case "Commit":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.Commit))
 
-	case "TXs_Inform":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.TXs_Inform))
-	case "Sig_Inform":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Sig_Inform))
-	case "Sigmsg":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Sigmsg))
-	case "InputBFT_Result":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.InputBFT_Result))
-
 	}
 
 	if err != nil {
@@ -73,23 +64,6 @@ func Decapsulation(messageType string, m *protobuf.Message) any {
 		return &payloadMessage
 	case "Commit":
 		var payloadMessage protobuf.Commit
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
-
-	case "TXs_Inform":
-		var payloadMessage protobuf.TXs_Inform
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
-	case "Sig_Inform":
-		var payloadMessage protobuf.Sig_Inform
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
-	case "Sigmsg":
-		var payloadMessage protobuf.Sigmsg
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
-	case "InputBFT_Result":
-		var payloadMessage protobuf.InputBFT_Result
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 
