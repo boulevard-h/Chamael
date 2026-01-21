@@ -4,11 +4,12 @@ import (
 	"Chamael/internal/party"
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
-	"Chamael/pkg/utils"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
@@ -16,10 +17,16 @@ import (
 )
 
 type RBCDelivered struct {
-	Epoch  uint32
-	Txs    []string
-	Hash   []byte
-	AggSig []byte
+	Epoch    uint32
+	Proposer uint32
+	Txs      []string
+	Hash     []byte
+	AggSig   []byte
+}
+
+type rbcInstanceDeliver struct {
+	Proposer uint32
+	Cert     RBCDelivered
 }
 
 func rbcHashTxs(txs []string) []byte {
@@ -32,20 +39,80 @@ func rbcHashTxs(txs []string) []byte {
 	return sum[:]
 }
 
-// RBCProcess 执行片内 RBC 共识。
-//
-// Deliver: 收到 2f+1 条 Ready 后聚合签名，并把 txs 写入 outputChannel；
-// 同时如果 certChannel != nil，则额外写入 (txs, H, AggSig)。
-func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, outputChannel chan []string, certChannel chan RBCDelivered) {
+// instanceID = epoch(uint32) || proposerPID(uint32)
+func rbcInstanceID(epoch uint32, proposerPID uint32) []byte {
+	id := make([]byte, 8)
+	binary.BigEndian.PutUint32(id[0:4], epoch)
+	binary.BigEndian.PutUint32(id[4:8], proposerPID)
+	return id
+}
+
+// RBCMultiEpochDeliver runs N RBC instances in one epoch (one proposer per instance),
+// waits until (2f+1 instances delivered AND my proposer instance delivered) or timeout,
+// and returns ONLY the txs delivered by my proposer instance (else nil on timeout).
+func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, timeout time.Duration) []string {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	deliverCh := make(chan rbcInstanceDeliver, int(p.N))
+	shardStart := p.Snumber * p.N
+	for proposerPID := shardStart; proposerPID < shardStart+p.N; proposerPID++ {
+		var proposeTxs []string
+		if proposerPID == p.PID {
+			proposeTxs = selfTxs
+		}
+		go rbcInstanceRun(ctx, p, epoch, proposerPID, proposeTxs, deliverCh)
+	}
+
+	threshold := 2*int(p.F) + 1
+	delivered := make(map[uint32]struct{})
+	deliveredCount := 0
+	myDelivered := false
+	var myTxs []string
+
+	for {
+		select {
+		case d := <-deliverCh:
+			if _, ok := delivered[d.Proposer]; !ok {
+				delivered[d.Proposer] = struct{}{}
+				deliveredCount++
+			}
+			if d.Proposer == p.PID && !myDelivered {
+				myDelivered = true
+				myTxs = d.Cert.Txs
+			}
+			if deliveredCount >= threshold && myDelivered {
+				return myTxs
+			}
+		case <-ctx.Done():
+			if myDelivered {
+				return myTxs
+			}
+			return nil
+		}
+	}
+}
+
+func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, proposerPID uint32, proposeTxs []string, deliverCh chan<- rbcInstanceDeliver) {
 	suite := bn256.NewSuite()
-	e := uint32(epoch)
-	id := utils.Uint32ToBytes(e)
+	id := rbcInstanceID(epoch, proposerPID)
 	threshold := 2*int(p.F) + 1
 
-	// 片内共识，选择 proposer：SID = (e-1)%N
-	if (e-1)%p.N == p.SID {
-		txs := <-inputChannel
-		propose := core.Encapsulation("RBC_Propose", id, p.PID, &protobuf.RBC_Propose{Txs: txs})
+	// Propose: proposer broadcasts RBC_Propose(txs).
+	if p.PID == proposerPID && proposeTxs != nil {
+		propose := core.Encapsulation("RBC_Propose", id, p.PID, &protobuf.RBC_Propose{Txs: proposeTxs})
 		p.Intra_Broadcast(propose)
 	}
 
@@ -53,15 +120,14 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 	echoCh := p.GetMessage("RBC_Echo", id)
 	readyCh := p.GetMessage("RBC_Ready", id)
 
-	// txsByHash / txEvidence 用于触发 Ready
 	txsByHash := make(map[string][]string)
 	txEvidence := make(map[string]map[uint32]struct{})
-
-	// readySigs 用于触发 Deliver
 	readySigs := make(map[string]map[uint32][]byte)
 
 	var echoed bool
 	var readySent bool
+	var delivered bool
+	var deliverSent bool
 	var deliverHash string
 	var waitingTxHash string
 
@@ -103,7 +169,7 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 		deliverHash = hs
 	}
 
-	maybeDeliver := func(hs string) (delivered bool) {
+	maybeDeliver := func(hs string) bool {
 		sigMap, ok := readySigs[hs]
 		if !ok || len(sigMap) < threshold {
 			return false
@@ -133,43 +199,60 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 			return false
 		}
 
-		outputChannel <- txs
-		if certChannel != nil {
-			certChannel <- RBCDelivered{
-				Epoch:  e,
-				Txs:    txs,
-				Hash:   h,
-				AggSig: aggSig,
+		if !deliverSent {
+			deliverSent = true
+			select {
+			case deliverCh <- rbcInstanceDeliver{
+				Proposer: proposerPID,
+				Cert: RBCDelivered{
+					Epoch:    epoch,
+					Proposer: proposerPID,
+					Txs:      txs,
+					Hash:     h,
+					AggSig:   aggSig,
+				},
+			}:
+			default:
 			}
 		}
 		return true
 	}
 
 	for {
-		// 若 Ready 先到，优先尝试 Deliver（等 txs 到齐后会继续）
-		if deliverHash != "" {
-			if maybeDeliver(deliverHash) {
+		if delivered {
+			// drain mode: keep consuming until ctx done to avoid blocking the dispatcher
+			select {
+			case <-ctx.Done():
 				return
+			case <-proposeCh:
+			case <-echoCh:
+			case <-readyCh:
 			}
+			continue
+		}
+
+		if deliverHash != "" && maybeDeliver(deliverHash) {
+			delivered = true
+			continue
 		}
 
 		select {
+		case <-ctx.Done():
+			return
+
 		case m := <-proposeCh:
 			payload := (core.Decapsulation("RBC_Propose", m)).(*protobuf.RBC_Propose)
 			hs := addTxEvidence(m.Sender, payload.Txs)
 
-			// Echo: 收到 Propose 后广播 Echo（只做一次）
+			// Echo: after receiving Propose, broadcast Echo once.
 			if !echoed {
 				echo := core.Encapsulation("RBC_Echo", id, p.PID, &protobuf.RBC_Echo{Txs: payload.Txs})
 				p.Intra_Broadcast(echo)
 				echoed = true
 			}
 
-			// 若之前 Ready 已经凑齐，但缺 txs，收到 txs 后立即尝试 Deliver
-			if waitingTxHash != "" && waitingTxHash == hs {
-				if deliverHash == "" {
-					deliverHash = hs
-				}
+			if waitingTxHash != "" && waitingTxHash == hs && deliverHash == "" {
+				deliverHash = hs
 			}
 			maybeBroadcastReady(hs)
 
@@ -177,10 +260,8 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 			payload := (core.Decapsulation("RBC_Echo", m)).(*protobuf.RBC_Echo)
 			hs := addTxEvidence(m.Sender, payload.Txs)
 
-			if waitingTxHash != "" && waitingTxHash == hs {
-				if deliverHash == "" {
-					deliverHash = hs
-				}
+			if waitingTxHash != "" && waitingTxHash == hs && deliverHash == "" {
+				deliverHash = hs
 			}
 			maybeBroadcastReady(hs)
 
@@ -191,7 +272,7 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 			}
 			hs := string(payload.H)
 
-			// 验证单签，过滤明显无效的 Ready
+			// verify individual sig for robustness
 			if err := bls.Verify(suite, p.PK[m.Sender], payload.H, payload.Sig); err != nil {
 				fmt.Println("RBC sig(H) verification failed(Malicious Participator):", err)
 				continue
@@ -208,4 +289,3 @@ func RBCProcess(p *party.HonestParty, epoch int, inputChannel chan []string, out
 		}
 	}
 }
-

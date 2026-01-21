@@ -9,6 +9,7 @@ import (
 
 var Mu = new(sync.Mutex)
 var Traffic = 0
+var Dropped = 0
 
 // MakeDispatcheChannels dispatche messages from receiveChannel
 // and make a double layer Map : (messageType) --> (id) --> (channel)
@@ -23,7 +24,14 @@ func MakeDispatcheChannels(receiveChannel chan *protobuf.Message, N uint32) *syn
 			var value2 any
 			value2, _ = value1.(*sync.Map).LoadOrStore(string(m.Id), make(chan *protobuf.Message, 4096))
 
-			value2.(chan *protobuf.Message) <- m
+			ch := value2.(chan *protobuf.Message)
+			select {
+			case ch <- m:
+			default:
+				Mu.Lock()
+				Dropped++
+				Mu.Unlock()
+			}
 
 			Mu.Lock()
 			Traffic += proto.Size(m)

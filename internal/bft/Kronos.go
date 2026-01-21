@@ -23,7 +23,7 @@ func isInternalTx(tx string) bool {
 	return true
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
+func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, rbcEpochTimeoutMs int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
 	timeChannel <- time.Now()
 	for e := uint32(1); e <= uint32(epoch); e++ {
 		fmt.Println("Start Epoch", e)
@@ -38,7 +38,17 @@ func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, itx_i
 
 		switch strings.ToLower(intraConsensus) {
 		case "rbc":
-			RBCProcess(p, int(e), inputChannel, receiveChannel, nil)
+			timeout := time.Duration(rbcEpochTimeoutMs) * time.Millisecond
+			if timeout <= 0 {
+				// fallback: keep consistent with existing demo timing knobs
+				if WaitTime > 0 {
+					timeout = time.Second * time.Duration(maxInt(1, WaitTime/10))
+				} else {
+					timeout = 5 * time.Second
+				}
+			}
+			txs := RBCMultiEpochDeliver(p, e, txs_in, timeout)
+			receiveChannel <- txs
 		default:
 			HotStuffProcess(p, int(e), inputChannel, receiveChannel)
 		}
@@ -69,4 +79,11 @@ func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, itx_i
 	}
 	// time.Sleep(time.Second * 15)
 	time.Sleep(time.Second * (time.Duration(WaitTime / 10)))
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

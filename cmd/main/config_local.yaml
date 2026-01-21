@@ -37,3 +37,4 @@ Txnum: 20000
 Crate: 0.1
 TestEpochs: 5
 IntraConsensus: rbc
+RBCEpochTimeoutMs: 0
