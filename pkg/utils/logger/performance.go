@@ -6,7 +6,6 @@ import (
 	"Chamael/pkg/txs"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -110,14 +109,6 @@ extraDelayDone:
 	duration := latestTime.Sub(earliestTime).Seconds() - float64(totalExtraDelay.Milliseconds())/1000
 	fmt.Printf("Time difference: %.2f seconds\n", duration)
 
-	// In HotStuff mode, every node in the shard outputs the same decided tx set,
-	// so divide by N to avoid counting duplicates.
-	// In RBC multi-instance mode (each node outputs only its own propose), outputs are unique per node,
-	// so DO NOT divide.
-	if strings.ToLower(c.IntraConsensus) != "rbc" {
-		internalTransactions = int(float64(internalTransactions) / float64(p.N))
-		crossShardTransactions = int(float64(crossShardTransactions) / float64(p.N))
-	}
 	totalTransactions = int(float64(internalTransactions) + float64(crossShardTransactions))
 
 	// 计算TPS (Transactions Per Second)

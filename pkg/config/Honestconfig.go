@@ -4,7 +4,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"go.dedis.ch/kyber/v3/pairing"
+	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"go.dedis.ch/kyber/v3/share"
 	"go.dedis.ch/kyber/v3/sign/bls"
+	"go.dedis.ch/kyber/v3/util/random"
 	"io/ioutil"
 	"strconv"
 
@@ -31,17 +34,18 @@ type HonestConfig struct {
 	Statistic string   `yaml:"Statistic"`
 	PK        []string `yaml:"PK"`
 	SK        string   `yaml:"SK"`
+
+	// TBLS threshold key material (per-shard).
+	// ThresholdPKCommits are the marshaled points of the public polynomial commitments.
+	// ThresholdSK is the marshaled scalar of the local private share, with its index ThresholdSKI.
+	ThresholdPKCommits []string `yaml:"ThresholdPKCommits,omitempty"`
+	ThresholdSKI       int      `yaml:"ThresholdSKI,omitempty"`
+	ThresholdSK        string   `yaml:"ThresholdSK,omitempty"`
 	// server start time
 	PrepareTime int `yaml:"PrepareTime"`
 	WaitTime    int `yaml:"WaitTime"`
 
 	TestEpochs int `yaml:"TestEpochs"`
-
-	// intra-shard consensus: "hotstuff" (default) or "rbc"
-	IntraConsensus string `yaml:"IntraConsensus"`
-
-	// RBC epoch timeout in milliseconds (0 = auto)
-	RBCEpochTimeoutMs int `yaml:"RBCEpochTimeoutMs"`
 }
 
 func NewHonestConfig(configName string, isLocal bool) (HonestConfig, error) {
@@ -165,6 +169,49 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 		pks = append(pks, base64.StdEncoding.EncodeToString(pkBytes))
 	}
 
+	// Generate per-shard TBLS threshold keys (used by PB/MVBA).
+	tSuite := bn256.NewSuite()
+	tGroup := tSuite.G2()
+	threshold := 2*c.F + 1
+	if threshold < 1 {
+		threshold = 1
+	}
+	if threshold > c.N {
+		threshold = c.N
+	}
+
+	thresholdPKCommitsByShard := make([][]string, c.M) // only shard 0 filled
+	thresholdSKByPID := make([]string, c.N*c.M)        // only shard 0 filled
+	thresholdSKIByPID := make([]int, c.N*c.M)          // only shard 0 filled
+
+	for shard := 0; shard < c.M; shard++ {
+		if shard != 0 {
+			continue
+		}
+		secret := tGroup.Scalar().Pick(random.New())
+		priPoly := share.NewPriPoly(tGroup, threshold-1, secret, random.New())
+		pubPoly := priPoly.Commit(nil)
+		_, commits := pubPoly.Info()
+
+		commitStrings := make([]string, len(commits))
+		for i := range commits {
+			b, _ := commits[i].MarshalBinary()
+			commitStrings[i] = base64.StdEncoding.EncodeToString(b)
+		}
+		thresholdPKCommitsByShard[shard] = commitStrings
+
+		shares := priPoly.Shares(c.N)
+		for sid := 0; sid < c.N; sid++ {
+			pid := shard*c.N + sid
+			if pid >= c.N*c.M {
+				continue
+			}
+			skBytes, _ := shares[sid].V.MarshalBinary()
+			thresholdSKByPID[pid] = base64.StdEncoding.EncodeToString(skBytes)
+			thresholdSKIByPID[pid] = shares[sid].I
+		}
+	}
+
 	for i := 0; i < c.N*c.M; i++ {
 		c.PID = i
 		c.SID = i % c.N
@@ -172,6 +219,18 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 
 		c.SK = sks[i]
 		c.PK = pks
+		if c.Snumber == 0 && c.Snumber >= 0 && c.Snumber < len(thresholdPKCommitsByShard) && len(thresholdPKCommitsByShard[c.Snumber]) > 0 {
+			c.ThresholdPKCommits = thresholdPKCommitsByShard[c.Snumber]
+		} else {
+			c.ThresholdPKCommits = nil
+		}
+		if c.Snumber == 0 && i >= 0 && i < len(thresholdSKByPID) && thresholdSKByPID[i] != "" {
+			c.ThresholdSK = thresholdSKByPID[i]
+			c.ThresholdSKI = thresholdSKIByPID[i]
+		} else {
+			c.ThresholdSK = ""
+			c.ThresholdSKI = 0
+		}
 
 		err := c.Marshal(dir + "/config_" + strconv.Itoa(i) + ".yaml")
 		if err != nil {

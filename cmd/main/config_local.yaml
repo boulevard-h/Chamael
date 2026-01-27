@@ -32,9 +32,7 @@ PortList:
 - 9244
 PrepareTime: 50
 Statistic: ./statistics
-WaitTime: 90
-Txnum: 20000
+WaitTime: 60
+Txnum: 10000
 Crate: 0.1
 TestEpochs: 5
-IntraConsensus: rbc
-RBCEpochTimeoutMs: 0

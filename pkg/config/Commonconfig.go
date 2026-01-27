@@ -34,12 +34,6 @@ type CommonConfig struct {
 	WaitTime    int `yaml:"WaitTime"`
 
 	TestEpochs int `yaml:"TestEpochs"`
-
-	// intra-shard consensus: "hotstuff" (default) or "rbc"
-	IntraConsensus string `yaml:"IntraConsensus"`
-
-	// RBC epoch timeout in milliseconds (0 = auto)
-	RBCEpochTimeoutMs int `yaml:"RBCEpochTimeoutMs"`
 }
 
 func NewCommonConfig(configName string, isLocal bool) (CommonConfig, error) {

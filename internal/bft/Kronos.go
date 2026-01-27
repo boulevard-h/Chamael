@@ -1,10 +1,10 @@
 package bft
 
 import (
+	"Chamael/internal/mvba"
 	"Chamael/internal/party"
 	"Chamael/pkg/txs"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -23,52 +23,43 @@ func isInternalTx(tx string) bool {
 	return true
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, intraConsensus string, rbcEpochTimeoutMs int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
+func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, WaitTime int) {
 	timeChannel <- time.Now()
 	for e := uint32(1); e <= uint32(epoch); e++ {
 		fmt.Println("Start Epoch", e)
 		epoch_start_time := time.Now()
 
-		txs_in := append([]string{}, (<-itx_inputChannel)...)
-		txs_in = append(txs_in, (<-ctx_inputChannel)...)
+		if p.Snumber == 0 {
+			// Shard 0 runs MVBA only. Inputs are random-ish bytes like in the unit test.
+			id := []byte(fmt.Sprintf("mvba|shard=%d|epoch=%d", p.Snumber, e))
+			value := []byte(fmt.Sprintf("mvba-input|pid=%d|epoch=%d|t=%d", p.PID, e, time.Now().UnixNano()))
+			_ = mvba.MainProcess(p, id, value, nil, nil)
+		} else {
+			txs_in := append([]string{}, (<-itx_inputChannel)...)
+			txs_in = append(txs_in, (<-ctx_inputChannel)...)
 
-		inputChannel := make(chan []string, 1)
-		receiveChannel := make(chan []string, 1)
-		inputChannel <- txs_in
+			timeout := 5 * time.Second
+			if WaitTime > 0 {
+				timeout = time.Second * time.Duration(maxInt(1, WaitTime/10))
+			}
+			txs_out := RBCMultiEpochDeliver(p, e, txs_in, timeout)
 
-		switch strings.ToLower(intraConsensus) {
-		case "rbc":
-			timeout := time.Duration(rbcEpochTimeoutMs) * time.Millisecond
-			if timeout <= 0 {
-				// fallback: keep consistent with existing demo timing knobs
-				if WaitTime > 0 {
-					timeout = time.Second * time.Duration(maxInt(1, WaitTime/10))
+			var innerShardTxs []string
+			var crossShardTxs []string
+			for _, tx := range txs_out {
+				if isInternalTx(tx) {
+					innerShardTxs = append(innerShardTxs, tx)
 				} else {
-					timeout = 5 * time.Second
+					crossShardTxs = append(crossShardTxs, tx)
 				}
 			}
-			txs := RBCMultiEpochDeliver(p, e, txs_in, timeout)
-			receiveChannel <- txs
-		default:
-			HotStuffProcess(p, int(e), inputChannel, receiveChannel)
-		}
-		txs_out := <-receiveChannel
 
-		var innerShardTxs []string
-		var crossShardTxs []string
-		for _, tx := range txs_out {
-			if isInternalTx(tx) {
-				innerShardTxs = append(innerShardTxs, tx)
-			} else {
-				crossShardTxs = append(crossShardTxs, tx)
+			if len(innerShardTxs) > 0 {
+				outputChannel <- innerShardTxs
 			}
-		}
-
-		if len(innerShardTxs) > 0 {
-			outputChannel <- innerShardTxs
-		}
-		if len(crossShardTxs) > 0 {
-			outputChannel <- crossShardTxs
+			if len(crossShardTxs) > 0 {
+				outputChannel <- crossShardTxs
+			}
 		}
 
 		delay := time.Since(epoch_start_time)
