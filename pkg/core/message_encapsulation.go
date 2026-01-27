@@ -33,6 +33,23 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 	case "RBC_Ready":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Ready))
 
+	case "VALUE":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Value))
+	case "ECHO":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Echo))
+
+	case "LOCK":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Lock))
+	case "FINISH":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Finish))
+	case "DONE":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Done))
+	case "HALT":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Halt))
+	case "PRE_VOTE":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.PreVote))
+	case "VOTE":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.Vote))
 	}
 
 	if err != nil {
@@ -84,6 +101,40 @@ func Decapsulation(messageType string, m *protobuf.Message) any {
 		return &payloadMessage
 	case "RBC_Ready":
 		var payloadMessage protobuf.RBC_Ready
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+
+	case "VALUE":
+		var payloadMessage protobuf.Value
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "ECHO":
+		var payloadMessage protobuf.Echo
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+
+	case "LOCK":
+		var payloadMessage protobuf.Lock
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "FINISH":
+		var payloadMessage protobuf.Finish
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "DONE":
+		var payloadMessage protobuf.Done
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "HALT":
+		var payloadMessage protobuf.Halt
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "PRE_VOTE":
+		var payloadMessage protobuf.PreVote
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "VOTE":
+		var payloadMessage protobuf.Vote
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 

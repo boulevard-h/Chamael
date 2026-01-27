@@ -2,6 +2,8 @@ syntax = "proto3";
 
 option go_package = "/protobuf";
 
+package protobuf;
+
 message Message {
   string type = 1;
   bytes id = 2;
@@ -47,4 +49,57 @@ message RBC_Echo{
 message RBC_Ready{
   bytes h = 1;
   bytes sig = 2;
+}
+
+// Provable Broadcast (PB) messages
+message Value {
+  bytes value = 1;
+  bytes validation = 2;
+}
+
+message Echo {
+  bytes sigshare = 1;
+}
+
+// MVBA messages
+message Lock {
+  bytes value = 1;
+  bytes sig = 2;
+}
+
+message Finish {
+  bytes value = 1;
+  bytes sig = 2;
+}
+
+message Done {
+  bytes coinShare = 1;
+}
+
+message Halt {
+  bytes value = 1;
+  bytes sig = 2;
+}
+
+message PreVote {
+  bool vote = 1;
+  bytes value = 2;
+  bytes sig = 3;
+}
+
+message Vote {
+  bool vote = 1;
+  bytes value = 2;
+  bytes sig = 3;
+  bytes sigshare = 4;
+}
+
+// (Optional) MVBA default validation payloads (kept for compatibility).
+message BLockSetValue {
+  repeated uint32 pid = 1;
+  repeated bytes hash = 2;
+}
+
+message BLockSetValidation {
+  repeated bytes sig = 1;
 }

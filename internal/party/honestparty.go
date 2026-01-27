@@ -12,6 +12,7 @@ import (
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
+	"go.dedis.ch/kyber/v3/share"
 )
 
 type HonestParty struct {
@@ -30,6 +31,10 @@ type HonestParty struct {
 
 	PK []kyber.Point
 	SK kyber.Scalar
+
+	// Threshold keys for TBLS (used by PB/MVBA).
+	ThresholdPK *share.PubPoly
+	ThresholdSK *share.PriShare
 
 	// 通信量统计，单位为MB
 	IntraShardTraffic float64 // 片内通信量
@@ -69,6 +74,28 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 		CrossShardTraffic: 0,
 	}
 
+	return &p
+}
+
+// NewHonestPartyWithThreshold creates a party instance that is equipped with a local TBLS share.
+// It does not require regular BLS PK/SK material (PK/SK remain nil).
+func NewHonestPartyWithThreshold(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, thresholdPK *share.PubPoly, thresholdSK *share.PriShare, Debug bool) *HonestParty {
+	p := HonestParty{
+		N:                 N,
+		F:                 F,
+		M:                 m,
+		PID:               pid,
+		Snumber:           snum,
+		SID:               sid,
+		ipList:            ipList,
+		portList:          portList,
+		sendChannels:      make([]chan *protobuf.Message, N*m),
+		ThresholdPK:       thresholdPK,
+		ThresholdSK:       thresholdSK,
+		Debug:             Debug,
+		IntraShardTraffic: 0,
+		CrossShardTraffic: 0,
+	}
 	return &p
 }
 
