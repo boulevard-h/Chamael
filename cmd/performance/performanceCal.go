@@ -165,6 +165,6 @@ func main() {
 		fmt.Printf("Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n", totalTx, internalTx, crossShardTx)
 		fmt.Printf("Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n", totalTps, internalTps, crossShardTps)
 		fmt.Printf("Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n", blockDelay, roundDelay, latency)
-		fmt.Printf("Total Intra-Shard Traffic: %.2f MB\nTotal Cross-Shard Traffic: %.2f MB\n", intraShardTraffic, crossShardTraffic)
+		fmt.Printf("Total Intra-Shard Traffic: %.2f MB\nTotal Cross-Shard Traffic: %.6f MB\n", intraShardTraffic, crossShardTraffic)
 	}
 }

@@ -57,6 +57,18 @@ message RBC_Bitmap{
   uint32 shard = 1;
   uint32 epoch = 2;
   bytes bitmap = 3;
+  reserved 4;
+  reserved "rbc_sid";
+  // Hashes for the 2f+1 RBC instances indicated by this bitmap.
+  // Length = 2f+1, ordered by increasing RBC SID among the set bits.
+  repeated bytes rbc_hash = 5;
+}
+
+// Cross-shard: shard-0 nodes send MVBA decided value back to the worker shard.
+message MVBA_Result{
+  uint32 shard = 1;
+  uint32 epoch = 2;
+  bytes result = 3;
 }
 
 // Provable Broadcast (PB) messages

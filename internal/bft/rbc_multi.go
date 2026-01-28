@@ -5,6 +5,7 @@ import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
 	"context"
+	"sort"
 	"time"
 )
 
@@ -101,6 +102,7 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 	threshold := 2*int(p.F) + 1
 	delivered := make(map[uint32]struct{})
 	deliveredOrder := make([]uint32, 0, threshold)
+	deliveredHash := make(map[uint32][]byte)
 	bitmapBroadcasted := false
 
 	myDelivered := false
@@ -114,16 +116,32 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 			return
 		}
 		bm := make([]byte, bitmapLenBits(p.N))
+		type sidHash struct {
+			sid  uint32
+			hash []byte
+		}
+		items := make([]sidHash, 0, threshold)
+
 		for _, proposerPID := range deliveredOrder[:threshold] {
 			if proposerPID < shardStart || proposerPID >= shardStart+p.N {
 				continue
 			}
-			bitmapSet(bm, proposerPID-shardStart)
+			sid := proposerPID - shardStart
+			h := deliveredHash[proposerPID]
+			items = append(items, sidHash{sid: sid, hash: append([]byte(nil), h...)})
 		}
-		msg := core.Encapsulation("RBC_Bitmap", rbcBitmapStreamID(), p.PID, &protobuf.RBC_Bitmap{Shard: p.Snumber, Epoch: epoch, Bitmap: bm})
+		sort.Slice(items, func(i, j int) bool { return items[i].sid < items[j].sid })
+
+		rbcHash := make([][]byte, 0, len(items))
+		for _, it := range items {
+			bitmapSet(bm, it.sid)
+			rbcHash = append(rbcHash, it.hash)
+		}
+
+		msg := core.Encapsulation("RBC_Bitmap", rbcBitmapStreamID(), p.PID, &protobuf.RBC_Bitmap{Shard: p.Snumber, Epoch: epoch, Bitmap: bm, RbcHash: rbcHash})
 		_ = p.Shard_Broadcast(msg, 0)
 		bitmapBroadcasted = true
-		Debugf(p, "epoch %d broadcast RBC_Bitmap -> shard0 (ones=%d, ids=%v)", epoch, bitmapCountOnes(bm, p.N), bitmapOnes(bm, p.N))
+		Debugf(p, "epoch %d broadcast RBC_Bitmap -> shard0 (ones=%d, ids=%v, hashes=%d)", epoch, bitmapCountOnes(bm, p.N), bitmapOnes(bm, p.N), len(rbcHash))
 	}
 
 	for {
@@ -131,6 +149,7 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 		case d := <-deliverCh:
 			if _, ok := delivered[d.Proposer]; !ok {
 				delivered[d.Proposer] = struct{}{}
+				deliveredHash[d.Proposer] = append([]byte(nil), d.Cert.Hash...)
 				if len(deliveredOrder) < threshold {
 					deliveredOrder = append(deliveredOrder, d.Proposer)
 				}
@@ -165,4 +184,3 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 		}
 	}
 }
-

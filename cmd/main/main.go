@@ -141,13 +141,20 @@ func main() {
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
-	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
-
-	// time.Sleep(time.Second * 15)
-	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))
+	bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
 	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
 	if p.Debug {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
+	}
+	// Grace period before exit: keep the process alive for a while so that
+	// cross-node TCP connections can finish in-flight sends (especially shard 0).
+	// This matches the previous experiment setup that relies on WaitTime to avoid early exits.
+	if c.WaitTime > 0 {
+		sleepSeconds := time.Duration(c.WaitTime / 3)
+		if sleepSeconds < 1 {
+			sleepSeconds = 1
+		}
+		time.Sleep(time.Second * sleepSeconds)
 	}
 	log.Println("exit safely", p.PID)
 }

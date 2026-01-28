@@ -91,7 +91,9 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32) {
 		go func(workShard, epoch uint32, value []byte) {
 			defer mvbaWg.Done()
 			mvbaID := []byte(fmt.Sprintf("mvba|workshard=%d|epoch=%d", workShard, epoch))
-			_ = mvba.MainProcess(p, mvbaID, value, nil, nil)
+			result := mvba.MainProcess(p, mvbaID, value, nil, nil)
+			msg := core.Encapsulation("MVBA_Result", mvbaResultID(workShard, epoch), p.PID, &protobuf.MVBA_Result{Shard: workShard, Epoch: epoch, Result: result})
+			_ = p.Shard_Broadcast(msg, workShard)
 			Debugf(p, "epoch %d shard %d MVBA done", epoch, workShard)
 		}(key.shard, key.epoch, orCopy)
 	}
@@ -99,4 +101,3 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32) {
 	mvbaWg.Wait()
 	Debugf(p, "main shard done: all MVBA instances started+finished (count=%d)", expected)
 }
-

@@ -34,6 +34,8 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Ready))
 	case "RBC_Bitmap":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Bitmap))
+	case "MVBA_Result":
+		data, err = proto.Marshal((payloadMessage).(*protobuf.MVBA_Result))
 
 	case "VALUE":
 		data, err = proto.Marshal((payloadMessage).(*protobuf.Value))
@@ -107,6 +109,10 @@ func Decapsulation(messageType string, m *protobuf.Message) any {
 		return &payloadMessage
 	case "RBC_Bitmap":
 		var payloadMessage protobuf.RBC_Bitmap
+		proto.Unmarshal(m.Data, &payloadMessage)
+		return &payloadMessage
+	case "MVBA_Result":
+		var payloadMessage protobuf.MVBA_Result
 		proto.Unmarshal(m.Data, &payloadMessage)
 		return &payloadMessage
 
