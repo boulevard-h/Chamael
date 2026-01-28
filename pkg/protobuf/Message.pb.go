@@ -530,7 +530,9 @@ func (x *RBC_Ready) GetSig() []byte {
 // Bitmap length = ceil(N/8). Bit i corresponds to proposer SID i within that worker shard.
 type RBC_Bitmap struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bitmap        []byte                 `protobuf:"bytes,1,opt,name=bitmap,proto3" json:"bitmap,omitempty"`
+	Shard         uint32                 `protobuf:"varint,1,opt,name=shard,proto3" json:"shard,omitempty"`
+	Epoch         uint32                 `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Bitmap        []byte                 `protobuf:"bytes,3,opt,name=bitmap,proto3" json:"bitmap,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -563,6 +565,20 @@ func (x *RBC_Bitmap) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RBC_Bitmap.ProtoReflect.Descriptor instead.
 func (*RBC_Bitmap) Descriptor() ([]byte, []int) {
 	return file_Message_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RBC_Bitmap) GetShard() uint32 {
+	if x != nil {
+		return x.Shard
+	}
+	return 0
+}
+
+func (x *RBC_Bitmap) GetEpoch() uint32 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
 }
 
 func (x *RBC_Bitmap) GetBitmap() []byte {
@@ -1128,10 +1144,12 @@ const file_Message_proto_rawDesc = "" +
 	"\x03txs\x18\x01 \x03(\tR\x03txs\"+\n" +
 	"\tRBC_Ready\x12\f\n" +
 	"\x01h\x18\x01 \x01(\fR\x01h\x12\x10\n" +
-	"\x03sig\x18\x02 \x01(\fR\x03sig\"$\n" +
+	"\x03sig\x18\x02 \x01(\fR\x03sig\"P\n" +
 	"\n" +
-	"RBC_Bitmap\x12\x16\n" +
-	"\x06bitmap\x18\x01 \x01(\fR\x06bitmap\"=\n" +
+	"RBC_Bitmap\x12\x14\n" +
+	"\x05shard\x18\x01 \x01(\rR\x05shard\x12\x14\n" +
+	"\x05epoch\x18\x02 \x01(\rR\x05epoch\x12\x16\n" +
+	"\x06bitmap\x18\x03 \x01(\fR\x06bitmap\"=\n" +
 	"\x05Value\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\fR\x05value\x12\x1e\n" +
 	"\n" +

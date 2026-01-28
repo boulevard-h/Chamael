@@ -1,6 +1,8 @@
 package bft
 
-import "encoding/binary"
+func rbcBitmapStreamID() []byte {
+	return []byte("RBC_Bitmap_STREAM")
+}
 
 func bitmapLenBits(n uint32) int {
 	return int((n + 7) / 8)
@@ -40,12 +42,4 @@ func bitmapCountOnes(bm []byte, n uint32) int {
 		}
 	}
 	return c
-}
-
-// rbcBitmapID = epoch(uint32) || shard(uint32)
-func rbcBitmapID(epoch uint32, shard uint32) []byte {
-	id := make([]byte, 8)
-	binary.BigEndian.PutUint32(id[0:4], epoch)
-	binary.BigEndian.PutUint32(id[4:8], shard)
-	return id
 }

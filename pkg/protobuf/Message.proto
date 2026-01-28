@@ -54,7 +54,9 @@ message RBC_Ready{
 // Cross-shard: worker-shard nodes notify shard-0 about (2f+1) delivered RBC instances in an epoch.
 // Bitmap length = ceil(N/8). Bit i corresponds to proposer SID i within that worker shard.
 message RBC_Bitmap{
-  bytes bitmap = 1;
+  uint32 shard = 1;
+  uint32 epoch = 2;
+  bytes bitmap = 3;
 }
 
 // Provable Broadcast (PB) messages
