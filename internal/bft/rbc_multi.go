@@ -1,0 +1,168 @@
+package bft
+
+import (
+	"Chamael/internal/party"
+	"Chamael/pkg/core"
+	"Chamael/pkg/protobuf"
+	"context"
+	"time"
+)
+
+// RBCMultiEpochDeliver runs N RBC instances in one epoch (one proposer per instance),
+// waits until (2f+1 instances delivered AND my proposer instance delivered) or timeout,
+// and returns ONLY the txs delivered by my proposer instance (else nil on timeout).
+func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, timeout time.Duration) []string {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	deliverCh := make(chan rbcInstanceDeliver, int(p.N))
+	shardStart := p.Snumber * p.N
+	for proposerPID := shardStart; proposerPID < shardStart+p.N; proposerPID++ {
+		var proposeTxs []string
+		if proposerPID == p.PID {
+			proposeTxs = selfTxs
+		}
+		go rbcInstanceRun(ctx, p, epoch, proposerPID, proposeTxs, deliverCh)
+	}
+
+	threshold := 2*int(p.F) + 1
+	delivered := make(map[uint32]struct{})
+	deliveredCount := 0
+	myDelivered := false
+	var myTxs []string
+
+	for {
+		select {
+		case d := <-deliverCh:
+			if _, ok := delivered[d.Proposer]; !ok {
+				delivered[d.Proposer] = struct{}{}
+				deliveredCount++
+			}
+			if d.Proposer == p.PID && !myDelivered {
+				myDelivered = true
+				myTxs = d.Cert.Txs
+			}
+			if deliveredCount >= threshold && myDelivered {
+				return myTxs
+			}
+		case <-ctx.Done():
+			if myDelivered {
+				return myTxs
+			}
+			return nil
+		}
+	}
+}
+
+// RBCMultiEpochDeliverWithBitmapBroadcast runs N RBC instances in one epoch (one proposer per instance).
+// When this node receives (2f+1) delivered RBC instances, it broadcasts a bitmap (with exactly 2f+1 bits set)
+// to all nodes in shard 0. It still returns ONLY the txs delivered by my proposer instance (else nil on timeout),
+// keeping the original output behavior used by the demo metrics.
+func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32, selfTxs []string, timeout time.Duration) []string {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+
+	Debugf(p, "epoch %d start RBC(N=%d,f=%d) -> need 2f+1=%d delivers before bitmap broadcast", epoch, p.N, p.F, 2*p.F+1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	deliverCh := make(chan rbcInstanceDeliver, int(p.N))
+	shardStart := p.Snumber * p.N
+	for proposerPID := shardStart; proposerPID < shardStart+p.N; proposerPID++ {
+		var proposeTxs []string
+		if proposerPID == p.PID {
+			proposeTxs = selfTxs
+		}
+		go rbcInstanceRun(ctx, p, epoch, proposerPID, proposeTxs, deliverCh)
+	}
+
+	threshold := 2*int(p.F) + 1
+	delivered := make(map[uint32]struct{})
+	deliveredOrder := make([]uint32, 0, threshold)
+	bitmapBroadcasted := false
+
+	myDelivered := false
+	var myTxs []string
+
+	broadcastBitmap := func() {
+		if bitmapBroadcasted || p.Snumber == 0 {
+			return
+		}
+		if len(deliveredOrder) < threshold {
+			return
+		}
+		bm := make([]byte, bitmapLenBits(p.N))
+		for _, proposerPID := range deliveredOrder[:threshold] {
+			if proposerPID < shardStart || proposerPID >= shardStart+p.N {
+				continue
+			}
+			bitmapSet(bm, proposerPID-shardStart)
+		}
+		msg := core.Encapsulation("RBC_Bitmap", rbcBitmapStreamID(), p.PID, &protobuf.RBC_Bitmap{Shard: p.Snumber, Epoch: epoch, Bitmap: bm})
+		_ = p.Shard_Broadcast(msg, 0)
+		bitmapBroadcasted = true
+		Debugf(p, "epoch %d broadcast RBC_Bitmap -> shard0 (ones=%d, ids=%v)", epoch, bitmapCountOnes(bm, p.N), bitmapOnes(bm, p.N))
+	}
+
+	for {
+		select {
+		case d := <-deliverCh:
+			if _, ok := delivered[d.Proposer]; !ok {
+				delivered[d.Proposer] = struct{}{}
+				if len(deliveredOrder) < threshold {
+					deliveredOrder = append(deliveredOrder, d.Proposer)
+				}
+				if len(delivered) <= threshold {
+					Debugf(p, "epoch %d RBC deliver %d/%d proposerPID=%d", epoch, len(delivered), threshold, d.Proposer)
+				}
+				if len(delivered) >= threshold {
+					broadcastBitmap()
+				}
+			}
+
+			if d.Proposer == p.PID && !myDelivered {
+				myDelivered = true
+				myTxs = d.Cert.Txs
+				Debugf(p, "epoch %d my RBC instance delivered (pid=%d, txs=%d)", epoch, p.PID, len(myTxs))
+			}
+			if len(delivered) >= threshold && myDelivered {
+				return myTxs
+			}
+
+		case <-ctx.Done():
+			// best effort: if threshold was reached before timeout, broadcast once.
+			if len(delivered) >= threshold {
+				broadcastBitmap()
+			} else {
+				Debugf(p, "epoch %d RBC timeout (delivered=%d < 2f+1=%d), no bitmap broadcast", epoch, len(delivered), threshold)
+			}
+			if myDelivered {
+				return myTxs
+			}
+			return nil
+		}
+	}
+}
+
