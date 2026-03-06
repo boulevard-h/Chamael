@@ -77,6 +77,7 @@ func messageHandler(
 		coinName := buf.Bytes()
 
 		coins := [][]byte{}
+		seenDone := make(map[uint32]struct{}, p.N)
 		for {
 			select {
 			case <-ctx.Done():
@@ -85,7 +86,21 @@ func messageHandler(
 				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
 					continue
 				}
+				senderSID := m.Sender % p.N
+				if _, ok := seenDone[senderSID]; ok {
+					continue
+				}
+
 				payload := core.Decapsulation(messageTypeDone, m).(*protobuf.Done)
+				shareIndex, err := tbls.SigShare(payload.CoinShare).Index()
+				if err != nil || uint32(shareIndex) != senderSID {
+					continue
+				}
+				if err := tbls.Verify(bn256.NewSuite(), p.ThresholdPK, coinName, payload.CoinShare); err != nil {
+					continue
+				}
+
+				seenDone[senderSID] = struct{}{}
 				coins = append(coins, payload.CoinShare)
 				if len(coins) == int(p.F+1) {
 					select {
@@ -96,7 +111,7 @@ func messageHandler(
 				if len(coins) > int(2*p.F) {
 					coin, err := tbls.Recover(bn256.NewSuite(), p.ThresholdPK, coinName, coins, int(2*p.F+1), int(p.N))
 					if err != nil {
-						return
+						continue
 					}
 					l := utils.BytesToUint32(coin) % p.N
 					thisRoundLeader <- l

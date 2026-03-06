@@ -182,6 +182,9 @@ func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, pro
 			return
 
 		case m := <-proposeCh:
+			if m.Sender != proposerPID {
+				continue
+			}
 			payload := (core.Decapsulation("RBC_Propose", m)).(*protobuf.RBC_Propose)
 			hs := addTxEvidence(m.Sender, payload.Txs)
 
@@ -230,4 +233,3 @@ func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, pro
 		}
 	}
 }
-

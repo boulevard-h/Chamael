@@ -257,7 +257,7 @@ func Q(p *party.HonestParty, ID []byte, value []byte, validation []byte, hashVer
 			if bytes.Equal(L.Hash[i], h.([]byte)) && bytes.Equal(S.Sig[i], s.([]byte)) {
 				continue
 			}
-			return nil
+			return errors.New("validation failed: cached lockset entry mismatch")
 		}
 		var buf bytes.Buffer
 		buf.Write([]byte("Echo"))
