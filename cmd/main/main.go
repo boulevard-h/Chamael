@@ -4,6 +4,7 @@ import (
 	"Chamael/internal/bft"
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
+	"Chamael/pkg/core"
 	"Chamael/pkg/txs"
 	"Chamael/pkg/utils/db"
 	"Chamael/pkg/utils/logger"
@@ -32,10 +33,16 @@ func main() {
 
 	c, err := config.NewHonestConfig(ConfigFile, true)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err)
 	}
 
-	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug)
+	core.SetMessageBufferSize(c.MessageBuffer)
+	trackTraffic := true
+	if c.TrackTraffic != nil {
+		trackTraffic = *c.TrackTraffic
+	}
+
+	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug, trackTraffic)
 	if len(c.ThresholdPKCommits) > 0 || c.ThresholdSK != "" {
 		if len(c.ThresholdPKCommits) == 0 || c.ThresholdSK == "" {
 			log.Fatalln("config TBLS fields incomplete: need both ThresholdPKCommits and ThresholdSK")

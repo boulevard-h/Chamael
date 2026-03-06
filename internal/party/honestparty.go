@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
@@ -36,12 +37,12 @@ type HonestParty struct {
 	ThresholdPK *share.PubPoly
 	ThresholdSK *share.PriShare
 
-	// 通信量统计，单位为MB
-	IntraShardTraffic float64 // 片内通信量
-	CrossShardTraffic float64 // 跨片通信量
+	TrackTraffic          bool
+	intraShardTrafficByte uint64
+	crossShardTrafficByte uint64
 }
 
-func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool) *HonestParty {
+func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, trackTraffic bool) *HonestParty {
 
 	//suite := bn256.NewSuite()
 	suite := pairing.NewSuiteBn256()
@@ -58,20 +59,19 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 	}
 
 	p := HonestParty{
-		N:                 N,
-		F:                 F,
-		M:                 m, //分片个数
-		PID:               pid,
-		Snumber:           snum, //节点所在的分片编号
-		SID:               sid,  //节点在分片内的编号
-		ipList:            ipList,
-		portList:          portList,
-		sendChannels:      make([]chan *protobuf.Message, N*m), //N改成N*m ！
-		PK:                points,
-		SK:                scalar,
-		Debug:             Debug,
-		IntraShardTraffic: 0,
-		CrossShardTraffic: 0,
+		N:            N,
+		F:            F,
+		M:            m, //分片个数
+		PID:          pid,
+		Snumber:      snum, //节点所在的分片编号
+		SID:          sid,  //节点在分片内的编号
+		ipList:       ipList,
+		portList:     portList,
+		sendChannels: make([]chan *protobuf.Message, N*m), //N改成N*m ！
+		PK:           points,
+		SK:           scalar,
+		Debug:        Debug,
+		TrackTraffic: trackTraffic,
 	}
 
 	return &p
@@ -79,22 +79,21 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // NewHonestPartyWithThreshold creates a party instance that is equipped with a local TBLS share.
 // It does not require regular BLS PK/SK material (PK/SK remain nil).
-func NewHonestPartyWithThreshold(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, thresholdPK *share.PubPoly, thresholdSK *share.PriShare, Debug bool) *HonestParty {
+func NewHonestPartyWithThreshold(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, thresholdPK *share.PubPoly, thresholdSK *share.PriShare, Debug bool, trackTraffic bool) *HonestParty {
 	p := HonestParty{
-		N:                 N,
-		F:                 F,
-		M:                 m,
-		PID:               pid,
-		Snumber:           snum,
-		SID:               sid,
-		ipList:            ipList,
-		portList:          portList,
-		sendChannels:      make([]chan *protobuf.Message, N*m),
-		ThresholdPK:       thresholdPK,
-		ThresholdSK:       thresholdSK,
-		Debug:             Debug,
-		IntraShardTraffic: 0,
-		CrossShardTraffic: 0,
+		N:            N,
+		F:            F,
+		M:            m,
+		PID:          pid,
+		Snumber:      snum,
+		SID:          sid,
+		ipList:       ipList,
+		portList:     portList,
+		sendChannels: make([]chan *protobuf.Message, N*m),
+		ThresholdPK:  thresholdPK,
+		ThresholdSK:  thresholdSK,
+		Debug:        Debug,
+		TrackTraffic: trackTraffic,
 	}
 	return &p
 }
@@ -128,20 +127,14 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 		return errors.New("This party hasn't been initialized")
 	}
 	if des < p.N*p.M {
-		// 计算消息大小并转换为MB
-		// 估算消息大小：Type(字符串) + ID(字节切片) + sender(4字节) + data(字节切片)
-		messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024) // 转换为MB
-
-		// 判断目标节点是否与当前节点在同一分片内
-		desShard := des / p.N // 计算目标节点所在的分片编号
-
-		// 统计通信量
-		if desShard == p.Snumber {
-			// 片内通信
-			p.IntraShardTraffic += messageSize
-		} else {
-			// 跨片通信
-			p.CrossShardTraffic += messageSize
+		if p.TrackTraffic {
+			messageSize := uint64(len(m.Type) + len(m.Id) + 4 + len(m.Data))
+			desShard := des / p.N
+			if desShard == p.Snumber {
+				atomic.AddUint64(&p.intraShardTrafficByte, messageSize)
+			} else {
+				atomic.AddUint64(&p.crossShardTrafficByte, messageSize)
+			}
 		}
 
 		p.sendChannels[des] <- m
@@ -197,9 +190,17 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
 
 	var value2 any
-	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, 4096))
+	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, core.MessageBufferSize()))
 
 	return value2.(chan *protobuf.Message)
+}
+
+func (p HonestParty) IntraShardTrafficMB() float64 {
+	return float64(atomic.LoadUint64(&p.intraShardTrafficByte)) / (1024 * 1024)
+}
+
+func (p HonestParty) CrossShardTrafficMB() float64 {
+	return float64(atomic.LoadUint64(&p.crossShardTrafficByte)) / (1024 * 1024)
 }
 
 func (p *HonestParty) checkInit() bool {

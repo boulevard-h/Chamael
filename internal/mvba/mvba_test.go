@@ -78,6 +78,7 @@ func makeTestShardParties(t *testing.T, n, f uint32, basePort int) []*party.Hone
 			thresholdPK,
 			thresholdSK[i],
 			false, // Debug
+			true,  // TrackTraffic
 		)
 	}
 

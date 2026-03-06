@@ -48,6 +48,8 @@ def generate_yaml_config(public_ips, nodes_per_server, start_port):
         'PrepareTime': 100,
         'Statistic': './statistics',
         'WaitTime': 120,
+        'MessageBuffer': 4096,
+        'TrackTraffic': True,
         'Txnum': 1000,
         'Crate': 0.1,
         'TestEpochs': 5

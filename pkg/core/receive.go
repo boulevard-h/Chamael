@@ -25,7 +25,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 		addr, err1 = net.ResolveTCPAddr("tcp4", ":"+port)
 		lis, err2 = net.ListenTCP("tcp4", addr)
 		if err1 != nil || err2 != nil {
-			time.Sleep(1000)
+			time.Sleep(connectionRetryDelay)
 			retry = true
 		} else {
 			retry = false
@@ -36,7 +36,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 	var conn *net.TCPConn
 	var err3 error
 	var fileLogger *log.Logger
-	receiveChannel := make(chan *protobuf.Message, MAXMESSAGE)
+	receiveChannel := make(chan *protobuf.Message, MessageBufferSize())
 	go func() {
 		if Debug == true {
 			homeDir, _ := os.UserHomeDir()
@@ -47,10 +47,13 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 		for {
 			//The handle func run forever
 			conn, err3 = lis.AcceptTCP()
-			conn.SetKeepAlive(true)
 			if err3 != nil {
-				log.Fatalln(err3, "In receive.go::go func(),AcceptTCP failed")
+				IncReceiveAcceptRetries()
+				log.Printf("AcceptTCP failed on %s: %v", lis.Addr(), err3)
+				time.Sleep(connectionRetryDelay)
+				continue
 			}
+			conn.SetKeepAlive(true)
 			//Once connect to a node, make a sub-handle func to handle this connection
 			go func(conn *net.TCPConn, channel chan *protobuf.Message) {
 				for {
@@ -62,6 +65,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 					_, err2 := io.ReadFull(conn, buf)
 
 					if err1 != nil || err2 != nil {
+						IncReceiveBreakdowns()
 						if num <= 10 || rand.Intn(num) < 10 {
 							log.Printf("The receive channel of %s (from %s) has break down", conn.LocalAddr(), conn.RemoteAddr())
 						}
@@ -75,7 +79,8 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 						fileLogger.Println(m)
 					}
 					if err3 != nil {
-						log.Fatalln(err3, "In receive.go::go func(),Unmarshal failed")
+						log.Printf("Unmarshal failed on %s from %s: %v", conn.LocalAddr(), conn.RemoteAddr(), err3)
+						continue
 					}
 					//Push protobuf.Message to receivechannel
 					(channel) <- &m

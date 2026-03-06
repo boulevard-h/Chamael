@@ -33,6 +33,8 @@ PortList:
 PrepareTime: 50
 Statistic: ./statistics
 WaitTime: 60
+MessageBuffer: 4096
+TrackTraffic: true
 Txnum: 10000
 Crate: 0.1
 TestEpochs: 5

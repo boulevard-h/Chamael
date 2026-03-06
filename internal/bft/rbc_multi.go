@@ -59,6 +59,7 @@ func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, 
 				return myTxs
 			}
 		case <-ctx.Done():
+			IncRBCTimeoutCount()
 			if myDelivered {
 				return myTxs
 			}
@@ -175,6 +176,7 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 			if len(delivered) >= threshold {
 				broadcastBitmap()
 			} else {
+				IncRBCTimeoutCount()
 				Debugf(p, "epoch %d RBC timeout (delivered=%d < 2f+1=%d), no bitmap broadcast", epoch, len(delivered), threshold)
 			}
 			if myDelivered {

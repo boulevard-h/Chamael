@@ -123,7 +123,7 @@ func (p *CommonParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
 
 	var value2 any
-	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, 4096))
+	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, core.MessageBufferSize()))
 
 	return value2.(chan *protobuf.Message)
 }

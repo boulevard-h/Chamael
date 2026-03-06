@@ -32,6 +32,10 @@ type CommonConfig struct {
 	// server start time
 	PrepareTime int `yaml:"PrepareTime"`
 	WaitTime    int `yaml:"WaitTime"`
+	// MessageBuffer controls the size of internal network/dispatch channels.
+	MessageBuffer int `yaml:"MessageBuffer,omitempty"`
+	// TrackTraffic toggles per-node traffic accounting. Defaults to true when omitted.
+	TrackTraffic *bool `yaml:"TrackTraffic,omitempty"`
 
 	TestEpochs int `yaml:"TestEpochs"`
 }

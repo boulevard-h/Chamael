@@ -4,6 +4,7 @@ import (
 	"Chamael/pkg/protobuf"
 	"Chamael/pkg/utils"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -12,36 +13,44 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// MAXMESSAGE is the size of channels
-var MAXMESSAGE = 4096
+const connectionRetryDelay = 50 * time.Millisecond
+
+func writeFull(conn *net.TCPConn, data []byte) error {
+	for len(data) > 0 {
+		n, err := conn.Write(data)
+		if err != nil {
+			return err
+		}
+		data = data[n:]
+	}
+	return nil
+}
+
+func dialSendConn(hostIP string, hostPort string) *net.TCPConn {
+	for {
+		addr, err := net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
+		if err != nil {
+			time.Sleep(connectionRetryDelay)
+			continue
+		}
+
+		conn, err := net.DialTCP("tcp4", nil, addr)
+		if err != nil {
+			time.Sleep(connectionRetryDelay)
+			continue
+		}
+
+		_ = conn.SetKeepAlive(true)
+		return conn
+	}
+}
 
 // MakeSendChannel returns a channel to send messages to hostIP
 func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool) chan *protobuf.Message {
-	var addr *net.TCPAddr
-	var conn *net.TCPConn
-	var err1, err2 error
 	var fileLogger *log.Logger
-	//Retry to connet to node
-	retry := true
-	for retry {
-		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
-		conn, err2 = net.DialTCP("tcp4", nil, addr)
-		if err1 != nil {
-			retry = true
-			time.Sleep(1000)
-			continue
-		}
-		if err2 != nil {
-			retry = true
-			time.Sleep(1000)
-			continue
-		}
-		retry = false
-
-		conn.SetKeepAlive(true)
-	}
+	conn := dialSendConn(hostIP, hostPort)
 	//Make the send channel and the handle func
-	sendChannel := make(chan *protobuf.Message, MAXMESSAGE)
+	sendChannel := make(chan *protobuf.Message, MessageBufferSize())
 
 	go func(conn *net.TCPConn, channel chan *protobuf.Message) {
 		if Debug == true {
@@ -64,10 +73,24 @@ func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool)
 			//Send bytes
 
 			length := len(byt)
-			_, err2 := conn.Write(utils.IntToBytes(length))
-			_, err3 := conn.Write(byt)
-			if err2 != nil || err3 != nil {
-				log.Fatalln("The send channel has break down!", err2)
+			for {
+				err2 := writeFull(conn, utils.IntToBytes(length))
+				err3 := writeFull(conn, byt)
+				if err2 == nil && err3 == nil {
+					break
+				}
+
+				if err2 != nil && err2 != io.EOF {
+					log.Printf("send header to %s failed: %v", hostIP+":"+hostPort, err2)
+				}
+				if err3 != nil && err3 != io.EOF {
+					log.Printf("send payload to %s failed: %v", hostIP+":"+hostPort, err3)
+				}
+				if conn != nil {
+					_ = conn.Close()
+				}
+				IncSendReconnects()
+				conn = dialSendConn(hostIP, hostPort)
 			}
 		}
 	}(conn, sendChannel)

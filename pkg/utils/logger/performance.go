@@ -1,8 +1,10 @@
 package logger
 
 import (
+	"Chamael/internal/bft"
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
+	"Chamael/pkg/core"
 	"Chamael/pkg/txs"
 	"fmt"
 	"os"
@@ -170,18 +172,24 @@ roundDelayDone:
 	*/
 
 	latency := (1-c.Crate)*avgBlockDelay + c.Crate*(avgBlockDelay+avgRoundDelay)
+	isWorkerShard := p.Snumber != 0
 
 	// 修改日志消息，添加延迟信息
-		logMessage := fmt.Sprintf(
-			"Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
-				"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
-				"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n"+
-				"Intra-Shard Traffic: %.2f MB\nCross-Shard Traffic: %.6f MB\n",
-			totalTransactions, internalTransactions, crossShardTransactions,
-			totalTPS, internalTPS, crossShardTPS,
-			avgBlockDelay, avgRoundDelay, latency,
-			p.IntraShardTraffic, p.CrossShardTraffic,
-		)
+	logMessage := fmt.Sprintf(
+		"Shard Number: %d\nWorker Shard: %t\nTotal Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
+			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
+			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n"+
+			"Intra-Shard Traffic: %.2f MB\nCross-Shard Traffic: %.6f MB\n"+
+			"Dispatcher Dropped: %d\nSend Reconnects: %d\nReceive Accept Retries: %d\nReceive Breakdowns: %d\n"+
+			"RBC Timeout Count: %d\nMVBA Timeout Count: %d\n",
+		p.Snumber, isWorkerShard,
+		totalTransactions, internalTransactions, crossShardTransactions,
+		totalTPS, internalTPS, crossShardTPS,
+		avgBlockDelay, avgRoundDelay, latency,
+		p.IntraShardTrafficMB(), p.CrossShardTrafficMB(),
+		core.LoadDroppedMessages(), core.LoadSendReconnects(), core.LoadReceiveAcceptRetries(), core.LoadReceiveBreakdowns(),
+		bft.LoadRBCTimeoutCount(), bft.LoadMVBATimeoutCount(),
+	)
 	_, err = fmt.Fprintln(file, logMessage)
 	if err != nil {
 		fmt.Printf("Failed to write to log file: %v\n", err)
