@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 // CommonParty is a struct of normal consensus parties
@@ -69,11 +70,19 @@ func (p *CommonParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	if des < p.N*p.m {
-		p.sendChannels[des] <- m
-		return nil
+	if des >= p.N*p.m {
+		return errors.New("Destination id is too large")
 	}
-	return errors.New("Destination id is too large")
+
+	timer := time.NewTimer(sendEnqueueTimeout)
+	defer timer.Stop()
+
+	select {
+	case p.sendChannels[des] <- m:
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("send to node %d timed out after %s", des, sendEnqueueTimeout)
+	}
 }
 
 // Broadcast a message to all parties
@@ -81,13 +90,7 @@ func (p *CommonParty) Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	for i := uint32(0); i < p.N*p.m; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, 0, p.N*p.m, "broadcast")
 }
 
 // Broadcast a message to parties in the same shard
@@ -95,13 +98,7 @@ func (p *CommonParty) Intra_Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	for i := p.Snumber * p.N; i < (p.Snumber+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, p.Snumber*p.N, (p.Snumber+1)*p.N, "intra broadcast")
 }
 
 // Broadcast a message to parties in a specified shard
@@ -109,13 +106,33 @@ func (p *CommonParty) Shard_Broadcast(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	for i := des * p.N; i < (des+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
+	return p.broadcastRange(m, des*p.N, (des+1)*p.N, "shard broadcast")
+}
+
+func (p *CommonParty) broadcastRange(m *protobuf.Message, start uint32, end uint32, scope string) error {
+	var wg sync.WaitGroup
+	failed := make(chan uint32, end-start)
+
+	for i := start; i < end; i++ {
+		des := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := p.Send(m, des); err != nil {
+				failed <- des
+			}
+		}()
 	}
-	return nil
+
+	wg.Wait()
+	close(failed)
+
+	failedNodes := make([]uint32, 0, end-start)
+	for des := range failed {
+		failedNodes = append(failedNodes, des)
+	}
+
+	return formatBroadcastError(scope, failedNodes, int(end-start))
 }
 
 // GetMessage Try to get a message according to messageType, ID
