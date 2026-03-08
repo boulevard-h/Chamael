@@ -46,40 +46,82 @@ func (h *InMemoryHub) GetReceiveChannel(pid uint32) chan *protobuf.Message {
 
 // MakeInMemSendChannel returns a channel that, when written to, delivers
 // the message to the destination node's receive channel.
+//
+// Semantics match the original TCP path:
+//   - Delivery is blocking (backpressure, never silently drops).
+//   - Each message independently experiences its own network delay
+//     (latency is not serialised across consecutive messages).
+//   - FIFO ordering within the same (from, to) pair is preserved.
+//
+// Implementation: a two-stage pipeline.
+//   Ingress goroutine reads from sendCh, stamps each message with a
+//   delivery-time (now + per-message latency including jitter), and
+//   pushes it into an internal pipe channel.
+//   Egress goroutine pops from the pipe, sleeps until the delivery-time
+//   if it hasn't passed yet, then does a blocking send to destCh.
+//
+// Because both the pipe and destCh are buffered, the ingress goroutine
+// is not blocked by the per-message delay — multiple messages can be
+// "in flight" simultaneously, just like a real network.
 func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Message {
 	sendCh := make(chan *protobuf.Message, MAXMESSAGE)
-
-	var delay time.Duration
-	if h.latencyFunc != nil {
-		delay = h.latencyFunc(from, to)
-	}
 	destCh := h.receiveChannels[to]
 	clone := h.cloneMessages
+	lf := h.latencyFunc
 
-	go func() {
-		for m := range sendCh {
-			if m == nil {
-				continue
+	if lf == nil {
+		// Fast path: no latency, direct forwarding.
+		go func() {
+			for m := range sendCh {
+				if m == nil {
+					continue
+				}
+				msg := m
+				if clone {
+					msg = proto.Clone(m).(*protobuf.Message)
+				}
+				Mu.Lock()
+				Traffic += proto.Size(m)
+				Mu.Unlock()
+				destCh <- msg // blocking — matches TCP backpressure
 			}
-			msg := m
-			if clone {
-				msg = proto.Clone(m).(*protobuf.Message)
-			}
-
-			Mu.Lock()
-			Traffic += proto.Size(m)
-			Mu.Unlock()
-
-			if delay > 0 {
-				time.Sleep(delay)
-			}
-
-			select {
-			case destCh <- msg:
-			default:
-			}
+		}()
+	} else {
+		type pendingMsg struct {
+			msg       *protobuf.Message
+			deliverAt time.Time
 		}
-	}()
+		pipe := make(chan pendingMsg, MAXMESSAGE)
+
+		// Ingress: stamp each message with its delivery time.
+		go func() {
+			for m := range sendCh {
+				if m == nil {
+					continue
+				}
+				msg := m
+				if clone {
+					msg = proto.Clone(m).(*protobuf.Message)
+				}
+				Mu.Lock()
+				Traffic += proto.Size(m)
+				Mu.Unlock()
+				delay := lf(from, to) // per-message call → jitter takes effect
+				pipe <- pendingMsg{msg: msg, deliverAt: time.Now().Add(delay)}
+			}
+			close(pipe)
+		}()
+
+		// Egress: deliver in FIFO order, sleeping until delivery time.
+		go func() {
+			for p := range pipe {
+				if wait := time.Until(p.deliverAt); wait > 0 {
+					time.Sleep(wait)
+				}
+				destCh <- p.msg // blocking — matches TCP backpressure
+			}
+		}()
+	}
 
 	return sendCh
 }
