@@ -11,6 +11,10 @@ func IncRBCTimeoutCount() {
 	atomic.AddUint64(&rbcTimeoutCount, 1)
 }
 
+func IncMVBATimeoutCount() {
+	atomic.AddUint64(&mvbaTimeoutCount, 1)
+}
+
 func LoadRBCTimeoutCount() uint64 {
 	return atomic.LoadUint64(&rbcTimeoutCount)
 }

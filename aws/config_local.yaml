@@ -30,9 +30,10 @@ PortList:
 - xxx
 - xxx
 - xxx
-PrepareTime: 50
+Prepare: 5
 Statistic: ./statistics
-WaitTime: 120
+WaitEpoch: 12
+WaitBuf: 40
 MessageBuffer: 4096
 TrackTraffic: true
 Txnum: 10

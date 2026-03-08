@@ -30,9 +30,10 @@ PortList:
 - 9242
 - 9243
 - 9244
-PrepareTime: 50
+Prepare: 5
 Statistic: ./statistics
-WaitTime: 60
+WaitEpoch: 6
+WaitBuf: 20
 MessageBuffer: 4096
 TrackTraffic: true
 Txnum: 10000

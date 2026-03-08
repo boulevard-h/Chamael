@@ -29,9 +29,13 @@ type CommonConfig struct {
 	Snumber   int    `yaml:"Snum"` //节点所在的分片编号
 	SID       int    `yaml:"SID"`  //节点在分片内的编号
 	Statistic string `yaml:"Statistic"`
-	// server start time
-	PrepareTime int `yaml:"PrepareTime"`
-	WaitTime    int `yaml:"WaitTime"`
+	// Timing settings, all in seconds.
+	Prepare   int `yaml:"Prepare"`
+	WaitEpoch int `yaml:"WaitEpoch"`
+	WaitBuf   int `yaml:"WaitBuf"`
+	// Deprecated legacy timing settings, kept for backward compatibility.
+	PrepareTime int `yaml:"PrepareTime,omitempty"`
+	WaitTime    int `yaml:"WaitTime,omitempty"`
 	// MessageBuffer controls the size of internal network/dispatch channels.
 	MessageBuffer int `yaml:"MessageBuffer,omitempty"`
 	// TrackTraffic toggles per-node traffic accounting. Defaults to true when omitted.
@@ -57,6 +61,7 @@ func (c *CommonConfig) ReadCommonConfig(ConfigName string, isLocal bool) error {
 	}
 
 	err = yaml.Unmarshal(byt, c)
+	normalizeTiming(&c.Prepare, &c.WaitEpoch, &c.WaitBuf, c.PrepareTime, c.WaitTime)
 
 	c.isRead = true
 

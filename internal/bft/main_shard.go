@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 )
 
 type shardEpochKey struct {
@@ -20,20 +21,30 @@ type bitmapAggregator struct {
 	seen     map[uint32]struct{}
 }
 
-func mainShardProcess(p *party.HonestParty, maxEpoch uint32) {
+func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 	Debugf(p, "main shard start: stream RBC_Bitmap and start MVBA on (workShard,epoch) threshold")
 
 	expected := int((p.M - 1) * maxEpoch)
 	thresholdNodes := 2*int(p.F) + 1
+	totalTimeout := kronosTotalTimeout(maxEpoch, waitEpoch)
+	deadlineAt := time.Now().Add(totalTimeout)
 
 	mvbaWg := sync.WaitGroup{}
 	started := make(map[shardEpochKey]struct{}, expected)
 	aggs := make(map[shardEpochKey]*bitmapAggregator)
 
 	ch := p.GetMessage("RBC_Bitmap", rbcBitmapStreamID())
+	deadline := time.NewTimer(totalTimeout)
+	defer deadline.Stop()
 
 	for len(started) < expected {
-		m := <-ch
+		var m *protobuf.Message
+		select {
+		case m = <-ch:
+		case <-deadline.C:
+			log.Printf("mainShardProcess timeout waiting for RBC_Bitmap: started=%d expected=%d timeout=%s", len(started), expected, totalTimeout)
+			goto waitMVBA
+		}
 		payload := core.Decapsulation("RBC_Bitmap", m).(*protobuf.RBC_Bitmap)
 
 		if payload.Shard == 0 || payload.Shard >= p.M {
@@ -98,6 +109,29 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32) {
 		}(key.shard, key.epoch, orCopy)
 	}
 
-	mvbaWg.Wait()
-	Debugf(p, "main shard done: all MVBA instances started+finished (count=%d)", expected)
+waitMVBA:
+	done := make(chan struct{})
+	go func() {
+		mvbaWg.Wait()
+		close(done)
+	}()
+
+	remaining := time.Until(deadlineAt)
+	if remaining <= 0 {
+		log.Printf("mainShardProcess timeout waiting for MVBA completion: started=%d expected=%d timeout=%s", len(started), expected, totalTimeout)
+		return
+	}
+
+	waitTimer := time.NewTimer(remaining)
+	defer waitTimer.Stop()
+
+	select {
+	case <-done:
+	case <-waitTimer.C:
+		IncMVBATimeoutCount()
+		log.Printf("mainShardProcess timeout waiting for MVBA completion: started=%d expected=%d timeout=%s", len(started), expected, totalTimeout)
+		return
+	}
+
+	Debugf(p, "main shard done: all MVBA instances started+finished (count=%d/%d)", len(started), expected)
 }
