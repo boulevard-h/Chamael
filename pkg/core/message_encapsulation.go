@@ -2,6 +2,7 @@ package core
 
 import (
 	"Chamael/pkg/protobuf"
+	"fmt"
 	"log"
 
 	"google.golang.org/protobuf/proto"
@@ -9,55 +10,10 @@ import (
 
 // Encapsulation encapsulates a message to a general type(*protobuf.Message)
 func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage any) *protobuf.Message {
-	var data []byte
-	var err error
-	switch messageType {
-
-	case "HS_New_View":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_New_View))
-	case "HS_Prepare":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Prepare))
-	case "HS_Prepare_Vote":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Prepare_Vote))
-	case "HS_Precommit":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Precommit))
-	case "HS_Precommit_Vote":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Precommit_Vote))
-	case "HS_Commit":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.HS_Commit))
-
-	case "RBC_Propose":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Propose))
-	case "RBC_Echo":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Echo))
-	case "RBC_Ready":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Ready))
-	case "RBC_Bitmap":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.RBC_Bitmap))
-	case "MVBA_Result":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.MVBA_Result))
-
-	case "VALUE":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Value))
-	case "ECHO":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Echo))
-
-	case "LOCK":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Lock))
-	case "FINISH":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Finish))
-	case "DONE":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Done))
-	case "HALT":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Halt))
-	case "PRE_VOTE":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.PreVote))
-	case "VOTE":
-		data, err = proto.Marshal((payloadMessage).(*protobuf.Vote))
-	}
-
+	data, err := marshalPayload(messageType, payloadMessage)
 	if err != nil {
-		log.Fatalln(err)
+		log.Printf("encapsulation marshal failed for message type %q from sender %d, dropping message: %v", messageType, sender, err)
+		return nil
 	}
 	return &protobuf.Message{
 		Type:   messageType,
@@ -68,91 +24,187 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 }
 
 // Decapsulation decapsulates a message to it's original type
-func Decapsulation(messageType string, m *protobuf.Message) any {
+func Decapsulation(messageType string, m *protobuf.Message) (any, error) {
+	if m == nil {
+		return nil, fmt.Errorf("decapsulation failed for %q: message is nil", messageType)
+	}
+
+	payloadMessage, err := newPayloadMessage(messageType)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := proto.Unmarshal(m.Data, payloadMessage); err != nil {
+		return nil, fmt.Errorf("decapsulation unmarshal failed for %q from sender %d: %w", messageType, m.Sender, err)
+	}
+	return payloadMessage, nil
+}
+
+func marshalPayload(messageType string, payloadMessage any) ([]byte, error) {
 	switch messageType {
 	case "HS_New_View":
-		var payloadMessage protobuf.HS_New_View
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_New_View)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HS_Prepare":
-		var payloadMessage protobuf.HS_Prepare
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_Prepare)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HS_Prepare_Vote":
-		var payloadMessage protobuf.HS_Prepare_Vote
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_Prepare_Vote)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HS_Precommit":
-		var payloadMessage protobuf.HS_Precommit
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_Precommit)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HS_Precommit_Vote":
-		var payloadMessage protobuf.HS_Precommit_Vote
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_Precommit_Vote)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HS_Commit":
-		var payloadMessage protobuf.HS_Commit
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.HS_Commit)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 
 	case "RBC_Propose":
-		var payloadMessage protobuf.RBC_Propose
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.RBC_Propose)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "RBC_Echo":
-		var payloadMessage protobuf.RBC_Echo
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.RBC_Echo)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "RBC_Ready":
-		var payloadMessage protobuf.RBC_Ready
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.RBC_Ready)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "RBC_Bitmap":
-		var payloadMessage protobuf.RBC_Bitmap
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.RBC_Bitmap)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "MVBA_Result":
-		var payloadMessage protobuf.MVBA_Result
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.MVBA_Result)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 
 	case "VALUE":
-		var payloadMessage protobuf.Value
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Value)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "ECHO":
-		var payloadMessage protobuf.Echo
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Echo)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 
 	case "LOCK":
-		var payloadMessage protobuf.Lock
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Lock)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "FINISH":
-		var payloadMessage protobuf.Finish
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Finish)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "DONE":
-		var payloadMessage protobuf.Done
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Done)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "HALT":
-		var payloadMessage protobuf.Halt
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.Halt)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "PRE_VOTE":
-		var payloadMessage protobuf.PreVote
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		payload, ok := payloadMessage.(*protobuf.PreVote)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	case "VOTE":
-		var payloadMessage protobuf.Vote
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
-
+		payload, ok := payloadMessage.(*protobuf.Vote)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 	default:
-		var payloadMessage protobuf.Message
-		proto.Unmarshal(m.Data, &payloadMessage)
-		return &payloadMessage
+		return nil, fmt.Errorf("unknown message type %q", messageType)
+	}
+}
+
+func newPayloadMessage(messageType string) (proto.Message, error) {
+	switch messageType {
+	case "HS_New_View":
+		return &protobuf.HS_New_View{}, nil
+	case "HS_Prepare":
+		return &protobuf.HS_Prepare{}, nil
+	case "HS_Prepare_Vote":
+		return &protobuf.HS_Prepare_Vote{}, nil
+	case "HS_Precommit":
+		return &protobuf.HS_Precommit{}, nil
+	case "HS_Precommit_Vote":
+		return &protobuf.HS_Precommit_Vote{}, nil
+	case "HS_Commit":
+		return &protobuf.HS_Commit{}, nil
+	case "RBC_Propose":
+		return &protobuf.RBC_Propose{}, nil
+	case "RBC_Echo":
+		return &protobuf.RBC_Echo{}, nil
+	case "RBC_Ready":
+		return &protobuf.RBC_Ready{}, nil
+	case "RBC_Bitmap":
+		return &protobuf.RBC_Bitmap{}, nil
+	case "MVBA_Result":
+		return &protobuf.MVBA_Result{}, nil
+	case "VALUE":
+		return &protobuf.Value{}, nil
+	case "ECHO":
+		return &protobuf.Echo{}, nil
+	case "LOCK":
+		return &protobuf.Lock{}, nil
+	case "FINISH":
+		return &protobuf.Finish{}, nil
+	case "DONE":
+		return &protobuf.Done{}, nil
+	case "HALT":
+		return &protobuf.Halt{}, nil
+	case "PRE_VOTE":
+		return &protobuf.PreVote{}, nil
+	case "VOTE":
+		return &protobuf.Vote{}, nil
+	default:
+		return nil, fmt.Errorf("unknown message type %q", messageType)
 	}
 }

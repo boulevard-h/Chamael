@@ -3,6 +3,7 @@ package mvba
 import (
 	"bytes"
 	"context"
+	"log"
 	"sync"
 
 	"Chamael/internal/party"
@@ -43,7 +44,16 @@ func messageHandler(
 			case <-ctx.Done():
 				return
 			case m := <-p.GetMessage(messageTypeFinish, IDr):
-				payload := core.Decapsulation(messageTypeFinish, m).(*protobuf.Finish)
+				decoded, err := core.Decapsulation(messageTypeFinish, m)
+				if err != nil {
+					log.Printf("node %d MVBA ignored malformed %s from %d: %v", p.PID, messageTypeFinish, m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.Finish)
+				if !ok {
+					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypeFinish, decoded, m.Sender)
+					continue
+				}
 				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
 					continue
 				}
@@ -91,7 +101,16 @@ func messageHandler(
 					continue
 				}
 
-				payload := core.Decapsulation(messageTypeDone, m).(*protobuf.Done)
+				decoded, err := core.Decapsulation(messageTypeDone, m)
+				if err != nil {
+					log.Printf("node %d MVBA ignored malformed %s from %d: %v", p.PID, messageTypeDone, m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.Done)
+				if !ok {
+					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypeDone, decoded, m.Sender)
+					continue
+				}
 				shareIndex, err := tbls.SigShare(payload.CoinShare).Index()
 				if err != nil || uint32(shareIndex) != senderSID {
 					continue
@@ -134,7 +153,16 @@ func messageHandler(
 				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
 					continue
 				}
-				payload := core.Decapsulation(messageTypeHalt, m).(*protobuf.Halt)
+				decoded, err := core.Decapsulation(messageTypeHalt, m)
+				if err != nil {
+					log.Printf("node %d MVBA ignored malformed %s from %d: %v", p.PID, messageTypeHalt, m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.Halt)
+				if !ok {
+					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypeHalt, decoded, m.Sender)
+					continue
+				}
 				h := sha3.Sum512(payload.Value)
 				var buf bytes.Buffer
 				buf.Write([]byte("Echo"))
@@ -161,7 +189,16 @@ func messageHandler(
 				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
 					continue
 				}
-				payload := core.Decapsulation(messageTypePreVote, m).(*protobuf.PreVote)
+				decoded, err := core.Decapsulation(messageTypePreVote, m)
+				if err != nil {
+					log.Printf("node %d MVBA ignored malformed %s from %d: %v", p.PID, messageTypePreVote, m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.PreVote)
+				if !ok {
+					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypePreVote, decoded, m.Sender)
+					continue
+				}
 				if payload.Vote {
 					h := sha3.Sum512(payload.Value)
 					var buf bytes.Buffer
@@ -228,7 +265,16 @@ func messageHandler(
 				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
 					continue
 				}
-				payload := core.Decapsulation(messageTypeVote, m).(*protobuf.Vote)
+				decoded, err := core.Decapsulation(messageTypeVote, m)
+				if err != nil {
+					log.Printf("node %d MVBA ignored malformed %s from %d: %v", p.PID, messageTypeVote, m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.Vote)
+				if !ok {
+					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypeVote, decoded, m.Sender)
+					continue
+				}
 				if payload.Vote {
 					h := sha3.Sum512(payload.Value)
 					var buf bytes.Buffer

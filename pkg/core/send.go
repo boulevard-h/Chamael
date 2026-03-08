@@ -68,7 +68,8 @@ func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool)
 			//Do Marshal
 			byt, err1 := proto.Marshal(m)
 			if err1 != nil {
-				log.Fatalln(err1)
+				log.Printf("proto.Marshal failed for outbound message to %s:%s, dropping message: %v", hostIP, hostPort, err1)
+				continue
 			}
 			//Send bytes
 

@@ -3,32 +3,31 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func SaveTxsToSQL(txs []string, filename string) {
+func SaveTxsToSQL(txs []string, filename string) error {
 	if _, err := os.Stat(filename); err == nil {
 		err := os.Remove(filename)
 		if err != nil {
-			log.Fatalf("Error deleting SQLite database file: %v\n", err)
+			return fmt.Errorf("delete sqlite database file %q failed: %w", filename, err)
 		}
 		//log.Printf("Existing database file '%s' removed.\n", filename)
 	}
 
 	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
-		log.Fatalf("Error opening SQLite database: %v\n", err)
+		return fmt.Errorf("open sqlite database %q failed: %w", filename, err)
 	}
 	defer db.Close()
 
 	// 开启事务
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatalf("Error beginning transaction: %v\n", err)
+		return fmt.Errorf("begin transaction for %q failed: %w", filename, err)
 	}
 
 	// Create the table for transactions
@@ -40,7 +39,7 @@ func SaveTxsToSQL(txs []string, filename string) {
 	_, err = tx.Exec(createTableSQL)
 	if err != nil {
 		tx.Rollback()
-		log.Fatalf("Error creating table: %v\n", err)
+		return fmt.Errorf("create transactions table in %q failed: %w", filename, err)
 	}
 
 	// Clear the table before inserting new data
@@ -48,7 +47,7 @@ func SaveTxsToSQL(txs []string, filename string) {
 	_, err = tx.Exec(clearTableSQL)
 	if err != nil {
 		tx.Rollback()
-		log.Fatalf("Error clearing table: %v\n", err)
+		return fmt.Errorf("clear transactions table in %q failed: %w", filename, err)
 	}
 
 	// 准备批量插入语句
@@ -56,7 +55,7 @@ func SaveTxsToSQL(txs []string, filename string) {
 	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
 		tx.Rollback()
-		log.Fatalf("Error preparing insert statement: %v\n", err)
+		return fmt.Errorf("prepare insert statement for %q failed: %w", filename, err)
 	}
 	defer stmt.Close()
 
@@ -65,15 +64,16 @@ func SaveTxsToSQL(txs []string, filename string) {
 		_, err = stmt.Exec(txData)
 		if err != nil {
 			tx.Rollback()
-			log.Fatalf("Error inserting transaction: %v\n", err)
+			return fmt.Errorf("insert transaction into %q failed: %w", filename, err)
 		}
 	}
 
 	// 提交事务
 	err = tx.Commit()
 	if err != nil {
-		log.Fatalf("Error committing transaction: %v\n", err)
+		return fmt.Errorf("commit transaction for %q failed: %w", filename, err)
 	}
+	return nil
 }
 
 func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {

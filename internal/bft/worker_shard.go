@@ -158,7 +158,16 @@ func waitForMVBAResults(p *party.HonestParty, epochNum uint32, thresholdMain int
 			if _, ok := seen[m.Sender]; ok {
 				continue
 			}
-			payload := core.Decapsulation("MVBA_Result", m).(*protobuf.MVBA_Result)
+			decoded, err := core.Decapsulation("MVBA_Result", m)
+			if err != nil {
+				log.Printf("epoch %d ignored malformed MVBA_Result from %d: %v", epochNum, m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.MVBA_Result)
+			if !ok {
+				log.Printf("epoch %d ignored MVBA_Result with unexpected payload type %T from %d", epochNum, decoded, m.Sender)
+				continue
+			}
 			if payload.Shard != p.Snumber || payload.Epoch != epochNum {
 				continue
 			}

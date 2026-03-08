@@ -51,7 +51,16 @@ func Sender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, 
 				continue
 			}
 
-			payload := core.Decapsulation(messageTypeEcho, m).(*protobuf.Echo)
+			decoded, err := core.Decapsulation(messageTypeEcho, m)
+			if err != nil {
+				log.Printf("node %d PB sender ignored malformed %s from %d: %v", p.PID, messageTypeEcho, m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.Echo)
+			if !ok {
+				log.Printf("node %d PB sender ignored %s with unexpected payload type %T from %d", p.PID, messageTypeEcho, decoded, m.Sender)
+				continue
+			}
 			shareIndex, err := tbls.SigShare(payload.Sigshare).Index()
 			if err != nil || uint32(shareIndex) != senderSID {
 				continue
@@ -97,7 +106,16 @@ func Receiver(
 				continue
 			}
 
-			payload := core.Decapsulation(messageTypeValue, m).(*protobuf.Value)
+			decoded, err := core.Decapsulation(messageTypeValue, m)
+			if err != nil {
+				log.Printf("node %d PB receiver ignored malformed %s from %d: %v", p.PID, messageTypeValue, m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.Value)
+			if !ok {
+				log.Printf("node %d PB receiver ignored %s with unexpected payload type %T from %d", p.PID, messageTypeValue, decoded, m.Sender)
+				continue
+			}
 			if validator != nil {
 				if err := validator(p, ID, payload.Value, payload.Validation, hashVerifyMap, sigVerifyMap); err != nil {
 					log.Printf("node %d PB validator rejected VALUE from %d: %v", p.PID, m.Sender, err)

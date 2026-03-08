@@ -36,6 +36,10 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	db.SaveTxsToSQL(Txs, homeDir+"/Chamael/db/cross_txs_node"+strconv.Itoa(*id)+".db")
+	dbPath := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(*id) + ".db"
+	if err := db.SaveTxsToSQL(Txs, dbPath); err != nil {
+		log.Printf("failed to save cross-shard transactions to %s: %v", dbPath, err)
+		return
+	}
 	log.Println("Cross-Shard Transactions saved to SQLite database.")
 }

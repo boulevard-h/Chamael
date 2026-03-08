@@ -185,7 +185,16 @@ func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, pro
 			if m.Sender != proposerPID {
 				continue
 			}
-			payload := (core.Decapsulation("RBC_Propose", m)).(*protobuf.RBC_Propose)
+			decoded, err := core.Decapsulation("RBC_Propose", m)
+			if err != nil {
+				fmt.Printf("RBC ignored malformed RBC_Propose from %d: %v\n", m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.RBC_Propose)
+			if !ok {
+				fmt.Printf("RBC ignored RBC_Propose with unexpected payload type %T from %d\n", decoded, m.Sender)
+				continue
+			}
 			hs := addTxEvidence(m.Sender, payload.Txs)
 
 			// Echo: after receiving Propose, broadcast Echo once.
@@ -201,7 +210,16 @@ func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, pro
 			maybeBroadcastReady(hs)
 
 		case m := <-echoCh:
-			payload := (core.Decapsulation("RBC_Echo", m)).(*protobuf.RBC_Echo)
+			decoded, err := core.Decapsulation("RBC_Echo", m)
+			if err != nil {
+				fmt.Printf("RBC ignored malformed RBC_Echo from %d: %v\n", m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.RBC_Echo)
+			if !ok {
+				fmt.Printf("RBC ignored RBC_Echo with unexpected payload type %T from %d\n", decoded, m.Sender)
+				continue
+			}
 			hs := addTxEvidence(m.Sender, payload.Txs)
 
 			if waitingTxHash != "" && waitingTxHash == hs && deliverHash == "" {
@@ -210,7 +228,16 @@ func rbcInstanceRun(ctx context.Context, p *party.HonestParty, epoch uint32, pro
 			maybeBroadcastReady(hs)
 
 		case m := <-readyCh:
-			payload := (core.Decapsulation("RBC_Ready", m)).(*protobuf.RBC_Ready)
+			decoded, err := core.Decapsulation("RBC_Ready", m)
+			if err != nil {
+				fmt.Printf("RBC ignored malformed RBC_Ready from %d: %v\n", m.Sender, err)
+				continue
+			}
+			payload, ok := decoded.(*protobuf.RBC_Ready)
+			if !ok {
+				fmt.Printf("RBC ignored RBC_Ready with unexpected payload type %T from %d\n", decoded, m.Sender)
+				continue
+			}
 			if len(payload.H) == 0 || len(payload.Sig) == 0 {
 				continue
 			}

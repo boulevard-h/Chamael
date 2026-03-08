@@ -105,8 +105,11 @@ func main() {
 		}
 
 		itxdb := fmt.Sprintf(homeDir+"/Chamael/db/inter_txs_node%d.db", p.PID)
-		db.SaveTxsToSQL(Txs, itxdb)
-		fmt.Println("Inner-Shard Transactions saved to SQLite database.")
+		if err := db.SaveTxsToSQL(Txs, itxdb); err != nil {
+			log.Printf("failed to save inner-shard transactions to %s: %v", itxdb, err)
+		} else {
+			fmt.Println("Inner-Shard Transactions saved to SQLite database.")
+		}
 
 		ctxdb := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(int(p.PID)) + ".db"
 

@@ -45,7 +45,16 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 			log.Printf("mainShardProcess timeout waiting for RBC_Bitmap: started=%d expected=%d timeout=%s", len(started), expected, totalTimeout)
 			goto waitMVBA
 		}
-		payload := core.Decapsulation("RBC_Bitmap", m).(*protobuf.RBC_Bitmap)
+		decoded, err := core.Decapsulation("RBC_Bitmap", m)
+		if err != nil {
+			log.Printf("ignore malformed RBC_Bitmap from %d: %v", m.Sender, err)
+			continue
+		}
+		payload, ok := decoded.(*protobuf.RBC_Bitmap)
+		if !ok {
+			log.Printf("ignore RBC_Bitmap with unexpected payload type %T from %d", decoded, m.Sender)
+			continue
+		}
 
 		if payload.Shard == 0 || payload.Shard >= p.M {
 			continue

@@ -70,6 +70,9 @@ func (p *CommonParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
+	if m == nil {
+		return errors.New("message is nil")
+	}
 	if des >= p.N*p.m {
 		return errors.New("Destination id is too large")
 	}
@@ -137,12 +140,7 @@ func (p *CommonParty) broadcastRange(m *protobuf.Message, start uint32, end uint
 
 // GetMessage Try to get a message according to messageType, ID
 func (p *CommonParty) GetMessage(messageType string, ID []byte) chan *protobuf.Message {
-	value1, _ := p.dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
-
-	var value2 any
-	value2, _ = value1.(*sync.Map).LoadOrStore(string(ID), make(chan *protobuf.Message, core.MessageBufferSize()))
-
-	return value2.(chan *protobuf.Message)
+	return core.GetOrCreateDispatchChannel(p.dispatcheChannels, messageType, ID)
 }
 
 func (p *CommonParty) checkInit() bool {

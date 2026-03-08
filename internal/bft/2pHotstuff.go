@@ -50,7 +50,16 @@ func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string) {
 
 	for {
 		m := <-p.GetMessage("HS_Prepare_Vote", utils.Uint32ToBytes(e))
-		payload := (core.Decapsulation("HS_Prepare_Vote", m)).(*protobuf.HS_Prepare_Vote)
+		decoded, err := core.Decapsulation("HS_Prepare_Vote", m)
+		if err != nil {
+			fmt.Printf("HotStuff ignored malformed HS_Prepare_Vote from %d: %v\n", m.Sender, err)
+			continue
+		}
+		payload, ok := decoded.(*protobuf.HS_Prepare_Vote)
+		if !ok {
+			fmt.Printf("HotStuff ignored HS_Prepare_Vote with unexpected payload type %T from %d\n", decoded, m.Sender)
+			continue
+		}
 		if !seen[int(m.Sender)] {
 			l = append(l, int(m.Sender))
 			seen[int(m.Sender)] = true
@@ -89,7 +98,16 @@ func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChanne
 
 	for {
 		m := <-p.GetMessage("HS_Precommit_Vote", utils.Uint32ToBytes(e))
-		payload := (core.Decapsulation("HS_Precommit_Vote", m)).(*protobuf.HS_Precommit_Vote)
+		decoded, err := core.Decapsulation("HS_Precommit_Vote", m)
+		if err != nil {
+			fmt.Printf("HotStuff ignored malformed HS_Precommit_Vote from %d: %v\n", m.Sender, err)
+			continue
+		}
+		payload, ok := decoded.(*protobuf.HS_Precommit_Vote)
+		if !ok {
+			fmt.Printf("HotStuff ignored HS_Precommit_Vote with unexpected payload type %T from %d\n", decoded, m.Sender)
+			continue
+		}
 		if !seen[int(m.Sender)] {
 			l = append(l, int(m.Sender))
 			seen[int(m.Sender)] = true
@@ -148,7 +166,16 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 			select {
 			//收到Prepare消息,签sig1(txs||vote1||epoch)并回复Prepare_Vote消息
 			case m := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("HS_Prepare", m)).(*protobuf.HS_Prepare)
+				decoded, err := core.Decapsulation("HS_Prepare", m)
+				if err != nil {
+					fmt.Printf("HotStuff ignored malformed HS_Prepare from %d: %v\n", m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.HS_Prepare)
+				if !ok {
+					fmt.Printf("HotStuff ignored HS_Prepare with unexpected payload type %T from %d\n", decoded, m.Sender)
+					continue
+				}
 				txs = payload.Txs
 				Txs = []byte(strings.Join(txs, ""))
 				var vote uint32
@@ -164,11 +191,29 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				gotPrepare = true
 			//收到Precommit消息,验证aggsig1(txs||vote1||epoch),签sig2(vote2||epoch)并回复Precommit_Vote消息
 			case m := <-p.GetMessage("HS_Precommit", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("HS_Precommit", m)).(*protobuf.HS_Precommit)
+				decoded, err := core.Decapsulation("HS_Precommit", m)
+				if err != nil {
+					fmt.Printf("HotStuff ignored malformed HS_Precommit from %d: %v\n", m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.HS_Precommit)
+				if !ok {
+					fmt.Printf("HotStuff ignored HS_Precommit with unexpected payload type %T from %d\n", decoded, m.Sender)
+					continue
+				}
 
 				if !gotPrepare {
 					mPrepare := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e))
-					payloadPrepare := (core.Decapsulation("HS_Prepare", mPrepare)).(*protobuf.HS_Prepare)
+					decodedPrepare, err := core.Decapsulation("HS_Prepare", mPrepare)
+					if err != nil {
+						fmt.Printf("HotStuff ignored malformed HS_Prepare from %d while backfilling: %v\n", mPrepare.Sender, err)
+						continue
+					}
+					payloadPrepare, ok := decodedPrepare.(*protobuf.HS_Prepare)
+					if !ok {
+						fmt.Printf("HotStuff ignored HS_Prepare with unexpected payload type %T from %d while backfilling\n", decodedPrepare, mPrepare.Sender)
+						continue
+					}
 					txs = payloadPrepare.Txs
 					Txs = []byte(strings.Join(txs, ""))
 					gotPrepare = true
@@ -176,7 +221,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 
 				sver := utils.MessageEncap([][]byte{Txs, utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
 				AggPK := utils.BytesToPoint(payload.Aggpk)
-				err := bls.Verify(suite, AggPK, sver, payload.Aggsig)
+				err = bls.Verify(suite, AggPK, sver, payload.Aggsig)
 				if err != nil {
 					fmt.Println("AggSig1(txs||vote1||epoch) verification failed(Malicious Leader):", err)
 					return
@@ -194,18 +239,36 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				p.Send(Precommit_VoteMessage, m.Sender)
 			//收到Commit消息,验证aggsig2(vote2||epoch)并回复New_View消息;
 			case m := <-p.GetMessage("HS_Commit", utils.Uint32ToBytes(e)):
-				payload := (core.Decapsulation("HS_Commit", m)).(*protobuf.HS_Commit)
+				decoded, err := core.Decapsulation("HS_Commit", m)
+				if err != nil {
+					fmt.Printf("HotStuff ignored malformed HS_Commit from %d: %v\n", m.Sender, err)
+					continue
+				}
+				payload, ok := decoded.(*protobuf.HS_Commit)
+				if !ok {
+					fmt.Printf("HotStuff ignored HS_Commit with unexpected payload type %T from %d\n", decoded, m.Sender)
+					continue
+				}
 
 				if !gotPrepare {
 					mPrepare := <-p.GetMessage("HS_Prepare", utils.Uint32ToBytes(e))
-					payloadPrepare := (core.Decapsulation("HS_Prepare", mPrepare)).(*protobuf.HS_Prepare)
+					decodedPrepare, err := core.Decapsulation("HS_Prepare", mPrepare)
+					if err != nil {
+						fmt.Printf("HotStuff ignored malformed HS_Prepare from %d while committing: %v\n", mPrepare.Sender, err)
+						continue
+					}
+					payloadPrepare, ok := decodedPrepare.(*protobuf.HS_Prepare)
+					if !ok {
+						fmt.Printf("HotStuff ignored HS_Prepare with unexpected payload type %T from %d while committing\n", decodedPrepare, mPrepare.Sender)
+						continue
+					}
 					txs = payloadPrepare.Txs
 					gotPrepare = true
 				}
 
 				sver := utils.MessageEncap([][]byte{utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
 				AggPK := utils.BytesToPoint(payload.Aggpk)
-				err := bls.Verify(suite, AggPK, sver, payload.Aggsig)
+				err = bls.Verify(suite, AggPK, sver, payload.Aggsig)
 				if err != nil {
 					fmt.Println("AggSig2(vote2||epoch) verification failed(Malicious Leader):", err)
 					return

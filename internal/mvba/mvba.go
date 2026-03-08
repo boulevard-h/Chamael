@@ -116,7 +116,11 @@ func MainProcess(
 
 			value1, ok1 := Fr.Load(l)
 			if ok1 {
-				finish := value1.(*protobuf.Finish)
+				finish, ok := value1.(*protobuf.Finish)
+				if !ok {
+					log.Printf("node %d MVBA ignored FINISH cache entry with unexpected type %T for leader %d", p.PID, value1, l)
+					continue
+				}
 				haltMessage := core.Encapsulation(messageTypeHalt, IDr, p.PID, &protobuf.Halt{
 					Value: finish.Value,
 					Sig:   finish.Sig,
@@ -177,7 +181,11 @@ func election(ctx context.Context, p *party.HonestParty, IDr []byte, doneFlagCha
 func preVote(p *party.HonestParty, IDr []byte, l uint32, Lr *sync.Map) {
 	value2, ok2 := Lr.Load(l)
 	if ok2 {
-		lock := value2.(*protobuf.Lock)
+		lock, ok := value2.(*protobuf.Lock)
+		if !ok {
+			log.Printf("node %d MVBA ignored LOCK cache entry with unexpected type %T for leader %d", p.PID, value2, l)
+			return
+		}
 		preVoteMessage := core.Encapsulation(messageTypePreVote, IDr, p.PID, &protobuf.PreVote{
 			Vote:  true,
 			Value: lock.Value,

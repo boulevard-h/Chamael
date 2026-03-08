@@ -2,6 +2,7 @@ package core
 
 import (
 	"Chamael/pkg/protobuf"
+	"log"
 	"sync"
 
 	"google.golang.org/protobuf/proto"
@@ -15,12 +16,11 @@ func MakeDispatcheChannels(receiveChannel chan *protobuf.Message, N uint32) *syn
 	go func() { //dispatcher
 		for {
 			m := <-(receiveChannel)
-			value1, _ := dispatcheChannels.LoadOrStore(m.Type, new(sync.Map))
-
-			var value2 any
-			value2, _ = value1.(*sync.Map).LoadOrStore(string(m.Id), make(chan *protobuf.Message, MessageBufferSize()))
-
-			ch := value2.(chan *protobuf.Message)
+			if m == nil {
+				log.Printf("dispatcher received nil message, dropping")
+				continue
+			}
+			ch := GetOrCreateDispatchChannel(dispatcheChannels, m.Type, m.Id)
 			select {
 			case ch <- m:
 			default:
@@ -31,4 +31,26 @@ func MakeDispatcheChannels(receiveChannel chan *protobuf.Message, N uint32) *syn
 		}
 	}()
 	return dispatcheChannels
+}
+
+func GetOrCreateDispatchChannel(dispatcheChannels *sync.Map, messageType string, ID []byte) chan *protobuf.Message {
+	value1, _ := dispatcheChannels.LoadOrStore(messageType, new(sync.Map))
+
+	messageTypeMap, ok := value1.(*sync.Map)
+	if !ok {
+		log.Printf("dispatcher map had unexpected type for message type %q, replacing entry", messageType)
+		messageTypeMap = new(sync.Map)
+		dispatcheChannels.Store(messageType, messageTypeMap)
+	}
+
+	value2, _ := messageTypeMap.LoadOrStore(string(ID), make(chan *protobuf.Message, MessageBufferSize()))
+	ch, ok := value2.(chan *protobuf.Message)
+	if ok {
+		return ch
+	}
+
+	log.Printf("dispatcher channel had unexpected type for message type %q id %x, replacing entry", messageType, ID)
+	ch = make(chan *protobuf.Message, MessageBufferSize())
+	messageTypeMap.Store(string(ID), ch)
+	return ch
 }
