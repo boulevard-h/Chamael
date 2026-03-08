@@ -43,7 +43,8 @@ func MainProcess(
 	sigVerifyMap := sync.Map{}
 
 	for r := uint32(0); ; r++ {
-		spbCtx, spbCancel := context.WithCancel(ctx)
+		roundCtx, roundCancel := context.WithCancel(ctx)
+		spbCtx, spbCancel := context.WithCancel(roundCtx)
 		wg := sync.WaitGroup{}
 		wg.Add(int(p.N + 1))
 
@@ -101,14 +102,15 @@ func MainProcess(
 			wg.Done()
 		}()
 
-		go messageHandler(ctx, p, IDr, IDrj, &Fr, doneFlagChannel, preVoteFlagChannel, preVoteYesChannel, preVoteNoChannel, voteFlagChannel, voteYesChannel, voteNoChannel, voteOtherChannel, leaderChannel, haltChannel)
+		go messageHandler(roundCtx, p, IDr, IDrj, &Fr, doneFlagChannel, preVoteFlagChannel, preVoteYesChannel, preVoteNoChannel, voteFlagChannel, voteYesChannel, voteNoChannel, voteOtherChannel, leaderChannel, haltChannel)
 
-		go election(ctx, p, IDr, doneFlagChannel)
+		go election(roundCtx, p, IDr, doneFlagChannel)
 
 		select {
 		case result := <-haltChannel:
 			log.Printf("(shard %d) node %d MVBA done", p.Snumber, p.PID)
 			spbCancel()
+			roundCancel()
 			return result
 		case l := <-leaderChannel:
 			spbCancel()
@@ -119,6 +121,7 @@ func MainProcess(
 				finish, ok := value1.(*protobuf.Finish)
 				if !ok {
 					log.Printf("node %d MVBA ignored FINISH cache entry with unexpected type %T for leader %d", p.PID, value1, l)
+					roundCancel()
 					continue
 				}
 				haltMessage := core.Encapsulation(messageTypeHalt, IDr, p.PID, &protobuf.Halt{
@@ -126,14 +129,16 @@ func MainProcess(
 					Sig:   finish.Sig,
 				})
 				_ = p.Intra_Broadcast(haltMessage)
+				roundCancel()
 				return finish.Value
 			}
 
 			go preVote(p, IDr, l, &Lr)
-			go vote(ctx, p, IDr, preVoteFlagChannel, preVoteYesChannel, preVoteNoChannel)
+			go vote(roundCtx, p, IDr, preVoteFlagChannel, preVoteYesChannel, preVoteNoChannel)
 
 			select {
 			case result := <-haltChannel:
+				roundCancel()
 				return result
 			case flag := <-voteFlagChannel:
 				if flag == 0 {
@@ -144,6 +149,7 @@ func MainProcess(
 						Sig:   sig,
 					})
 					_ = p.Intra_Broadcast(haltMessage)
+					roundCancel()
 					return value
 				} else if flag == 1 {
 					sig := <-voteNoChannel
@@ -152,6 +158,7 @@ func MainProcess(
 					value = <-voteOtherChannel
 					validation = <-voteOtherChannel
 				}
+				roundCancel()
 			}
 		}
 	}

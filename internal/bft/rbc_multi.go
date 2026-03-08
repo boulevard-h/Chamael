@@ -18,6 +18,7 @@ func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, 
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
@@ -80,6 +81,7 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 	Debugf(p, "epoch %d start RBC(N=%d,f=%d) -> need 2f+1=%d delivers before bitmap broadcast", epoch, p.N, p.F, 2*p.F+1)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()

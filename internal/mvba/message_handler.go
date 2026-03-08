@@ -141,7 +141,12 @@ func messageHandler(
 		}
 	}()
 
-	l := <-thisRoundLeader
+	var l uint32
+	select {
+	case <-ctx.Done():
+		return
+	case l = <-thisRoundLeader:
+	}
 
 	// HALT
 	go func() {
