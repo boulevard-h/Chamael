@@ -229,21 +229,15 @@ func main() {
 	log.Printf("完成。")
 }
 
+// aggregateResults mirrors the logic of cmd/performance/performanceCal.go:
+//   - TX counts, TPS, traffic: sum across all node files
+//   - Delays: sum then divide by fileCount (average)
 func aggregateResults(totalNodes int, logDir string) {
-	type shardStats struct {
-		totalTx     int
-		internalTx  int
-		crossTx     int
-		totalTPS    float64
-		internalTPS float64
-		crossTPS    float64
-		blockDelay  float64
-		roundDelay  float64
-		latency     float64
-		count       int
-	}
-
-	stats := &shardStats{}
+	var totalTx, internalTx, crossTx int
+	var totalTPS, internalTPS, crossTPS float64
+	var blockDelay, roundDelay, latency float64
+	var intraTraffic, crossTraffic float64
+	var fileCount int
 
 	for i := 0; i < totalNodes; i++ {
 		path := fmt.Sprintf("%s/(Performance)node%d", logDir, i)
@@ -252,53 +246,70 @@ func aggregateResults(totalNodes int, logDir string) {
 			continue
 		}
 		content := string(data)
+		fileCount++
 
-		var totalTx, internalTx, crossTx int
-		var totalTPS, internalTPS, crossTPS float64
-		var blockDelay, roundDelay, lat float64
+		var v int
+		var vf float64
 
-		fmt.Sscanf(extractLine(content, "Total Transactions:"), "Total Transactions: %d", &totalTx)
-		fmt.Sscanf(extractLine(content, "Internal Transactions:"), "Internal Transactions: %d", &internalTx)
-		fmt.Sscanf(extractLine(content, "Cross-Shard Transactions:"), "Cross-Shard Transactions: %d", &crossTx)
-		fmt.Sscanf(extractLine(content, "Total TPS:"), "Total TPS: %f", &totalTPS)
-		fmt.Sscanf(extractLine(content, "Internal TPS:"), "Internal TPS: %f", &internalTPS)
-		fmt.Sscanf(extractLine(content, "Cross-Shard TPS:"), "Cross-Shard TPS: %f", &crossTPS)
-		fmt.Sscanf(extractLine(content, "Average Block Delay:"), "Average Block Delay: %f", &blockDelay)
-		fmt.Sscanf(extractLine(content, "Average Round Delay:"), "Average Round Delay: %f", &roundDelay)
-		fmt.Sscanf(extractLine(content, "Latency:"), "Latency: %f", &lat)
+		if fmt.Sscanf(extractLine(content, "Total Transactions:"), "Total Transactions: %d", &v); v != 0 {
+			totalTx += v
+		}
+		v = 0
+		if fmt.Sscanf(extractLine(content, "Internal Transactions:"), "Internal Transactions: %d", &v); v != 0 {
+			internalTx += v
+		}
+		v = 0
+		if fmt.Sscanf(extractLine(content, "Cross-Shard Transactions:"), "Cross-Shard Transactions: %d", &v); v != 0 {
+			crossTx += v
+		}
 
-		stats.totalTx += totalTx
-		stats.internalTx += internalTx
-		stats.crossTx += crossTx
-		stats.totalTPS += totalTPS
-		stats.internalTPS += internalTPS
-		stats.crossTPS += crossTPS
-		stats.blockDelay += blockDelay
-		stats.roundDelay += roundDelay
-		stats.latency += lat
-		stats.count++
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Total TPS:"), "Total TPS: %f", &vf)
+		totalTPS += vf
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Internal TPS:"), "Internal TPS: %f", &vf)
+		internalTPS += vf
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Cross-Shard TPS:"), "Cross-Shard TPS: %f", &vf)
+		crossTPS += vf
+
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Average Block Delay:"), "Average Block Delay: %f ms", &vf)
+		blockDelay += vf
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Average Round Delay:"), "Average Round Delay: %f ms", &vf)
+		roundDelay += vf
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Latency:"), "Latency: %f ms", &vf)
+		latency += vf
+
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Intra-Shard Traffic:"), "Intra-Shard Traffic: %f MB", &vf)
+		intraTraffic += vf
+		vf = 0
+		fmt.Sscanf(extractLine(content, "Cross-Shard Traffic:"), "Cross-Shard Traffic: %f MB", &vf)
+		crossTraffic += vf
 	}
 
+	if fileCount > 0 {
+		blockDelay /= float64(fileCount)
+		roundDelay /= float64(fileCount)
+		latency /= float64(fileCount)
+	}
+
+	// Output format matches cmd/performance/performanceCal.go
 	fmt.Println()
-	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
-	fmt.Println("║                   模拟汇总结果 (Kronos)                     ║")
-	fmt.Println("╠══════════════════════════════════════════════════════════════╣")
-
-	if stats.count > 0 {
-		c := float64(stats.count)
-		fmt.Printf("║  节点数: %d                                                 \n", stats.count)
-		fmt.Printf("║  平均 TPS: %.1f (片内=%.1f 跨片=%.1f)                    \n",
-			stats.totalTPS/c, stats.internalTPS/c, stats.crossTPS/c)
-		fmt.Printf("║  系统总 TPS: %.1f                                        \n", stats.totalTPS)
-		fmt.Printf("║  平均区块延迟: %.1f ms                                   \n", stats.blockDelay/c)
-		fmt.Printf("║  平均轮次延迟: %.1f ms                                   \n", stats.roundDelay/c)
-		fmt.Printf("║  平均端到端延迟: %.1f ms                                 \n", stats.latency/c)
-		fmt.Printf("║  总交易量: %d (片内=%d 跨片=%d)                         \n",
-			stats.totalTx, stats.internalTx, stats.crossTx)
-	} else {
-		fmt.Println("║  未找到性能数据                                             ║")
-	}
-	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
+	fmt.Printf("Total Transactions: %d\n", totalTx)
+	fmt.Printf("Internal Transactions: %d\n", internalTx)
+	fmt.Printf("Cross-Shard Transactions: %d\n", crossTx)
+	fmt.Printf("Total TPS: %.2f\n", totalTPS)
+	fmt.Printf("Internal TPS: %.2f\n", internalTPS)
+	fmt.Printf("Cross-Shard TPS: %.2f\n", crossTPS)
+	fmt.Printf("Average Block Delay: %.2f ms\n", blockDelay)
+	fmt.Printf("Average Round Delay: %.2f ms\n", roundDelay)
+	fmt.Printf("Latency: %.2f ms\n", latency)
+	fmt.Printf("Total Intra-Shard Traffic: %.2f MB\n", intraTraffic)
+	fmt.Printf("Total Cross-Shard Traffic: %.2f MB\n", crossTraffic)
 }
 
 func extractLine(content, prefix string) string {
