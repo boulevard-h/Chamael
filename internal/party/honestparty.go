@@ -175,6 +175,20 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 	return value2.(chan *protobuf.Message)
 }
 
+// InitReceiveChannelFromHub wires the party's dispatcher to the hub's receive channel
+// instead of a TCP listener. Used by the single-process simulator.
+func (p *HonestParty) InitReceiveChannelFromHub(hub *core.InMemoryHub) {
+	p.dispatcheChannels = core.MakeDispatcheChannels(hub.GetReceiveChannel(p.PID), p.N*p.M)
+}
+
+// InitSendChannelFromHub wires send channels through the in-memory hub
+// instead of TCP connections. Used by the single-process simulator.
+func (p *HonestParty) InitSendChannelFromHub(hub *core.InMemoryHub) {
+	for i := uint32(0); i < p.N*p.M; i++ {
+		p.sendChannels[i] = hub.MakeInMemSendChannel(p.PID, i)
+	}
+}
+
 func (p *HonestParty) checkInit() bool {
 	if p.sendChannels == nil {
 		return false
