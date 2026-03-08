@@ -58,7 +58,7 @@ func MainProcess(
 		voteFlagChannel := make(chan byte, 1)
 		voteYesChannel := make(chan []byte, 2)
 		voteNoChannel := make(chan []byte, 1)
-		voteOtherChannel := make(chan []byte, 1)
+		voteOtherChannel := make(chan []byte, 2)
 
 		var buf bytes.Buffer
 		buf.Write(ID)
