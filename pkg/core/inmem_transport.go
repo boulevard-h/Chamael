@@ -134,8 +134,10 @@ type RegionLatencyConfig struct {
 	JitterPct       int     // percentage of base latency used as random jitter (0-100)
 }
 
-// DefaultAWSLatencyConfig returns a config mimicking 4 AWS regions:
-// us-east-1, us-west-2, eu-west-1, ap-northeast-1.
+// DefaultAWSLatencyConfig returns a config based on measured one-way
+// latencies between 4 AWS regions:
+// ap-east-1 (Hong Kong), ap-northeast-1 (Tokyo),
+// eu-west-2 (London), us-east-1 (N. Virginia).
 func DefaultAWSLatencyConfig(totalNodes uint32) RegionLatencyConfig {
 	regions := 4
 	nodesPerRegion := totalNodes / uint32(regions)
@@ -146,11 +148,11 @@ func DefaultAWSLatencyConfig(totalNodes uint32) RegionLatencyConfig {
 		Regions:        regions,
 		NodesPerRegion: nodesPerRegion,
 		LatencyMatrixMs: [][]int{
-			//  us-east  us-west  eu-west  ap-ne
-			{1, 67, 80, 170},   // us-east-1
-			{67, 1, 140, 120},  // us-west-2
-			{80, 140, 1, 230},  // eu-west-1
-			{170, 120, 230, 1}, // ap-northeast-1
+			//  hk  tokyo  london  virginia
+			{1, 25, 101, 105},   // ap-east-1 (Hong Kong)
+			{25, 1, 108, 76},    // ap-northeast-1 (Tokyo)
+			{101, 108, 1, 38},   // eu-west-2 (London)
+			{105, 76, 38, 1},    // us-east-1 (N. Virginia)
 		},
 		JitterPct: 10,
 	}

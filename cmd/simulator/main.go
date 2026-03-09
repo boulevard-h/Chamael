@@ -54,7 +54,7 @@ func main() {
 	case "aws":
 		cfg := core.DefaultAWSLatencyConfig(uint32(totalNodes))
 		latencyFunc = cfg.Build()
-		log.Printf("延迟模式: AWS 4区域模拟 (每区域节点数=%d)", cfg.NodesPerRegion)
+		log.Printf("延迟模式: AWS 4区域模拟 (香港/东京/伦敦/弗吉尼亚, 每区域节点数=%d)", cfg.NodesPerRegion)
 	case "none":
 		log.Printf("延迟模式: 无延迟（即时投递）")
 	default:
