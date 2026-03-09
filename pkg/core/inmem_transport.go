@@ -21,13 +21,15 @@ type InMemoryHub struct {
 	receiveChannels []chan *protobuf.Message
 	latencyFunc     LatencyFunc
 	cloneMessages   bool
+	bwManager       *BandwidthManager
 }
 
 // NewInMemoryHub creates a hub for totalNodes participants.
 // If latencyFunc is nil, all messages are delivered instantly.
 // If cloneMessages is true, each message is deep-copied before delivery
 // (safer but slower; set false when the protocol never mutates received messages).
-func NewInMemoryHub(totalNodes uint32, latencyFunc LatencyFunc, cloneMessages bool) *InMemoryHub {
+// If bwCfg is non-nil, per-machine bandwidth management is enabled.
+func NewInMemoryHub(totalNodes uint32, latencyFunc LatencyFunc, cloneMessages bool, bwCfg *BandwidthConfig) *InMemoryHub {
 	hub := &InMemoryHub{
 		totalNodes:      totalNodes,
 		receiveChannels: make([]chan *protobuf.Message, totalNodes),
@@ -37,7 +39,15 @@ func NewInMemoryHub(totalNodes uint32, latencyFunc LatencyFunc, cloneMessages bo
 	for i := uint32(0); i < totalNodes; i++ {
 		hub.receiveChannels[i] = make(chan *protobuf.Message, MAXMESSAGE)
 	}
+	if bwCfg != nil {
+		hub.bwManager = NewBandwidthManager(totalNodes, bwCfg)
+	}
 	return hub
+}
+
+// GetBandwidthManager returns the bandwidth manager (nil if not configured).
+func (h *InMemoryHub) GetBandwidthManager() *BandwidthManager {
+	return h.bwManager
 }
 
 func (h *InMemoryHub) GetReceiveChannel(pid uint32) chan *protobuf.Message {
@@ -68,6 +78,7 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 	destCh := h.receiveChannels[to]
 	clone := h.cloneMessages
 	lf := h.latencyFunc
+	bm := h.bwManager // may be nil
 
 	if lf == nil {
 		// Fast path: no latency, direct forwarding.
@@ -80,9 +91,13 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 				if clone {
 					msg = proto.Clone(m).(*protobuf.Message)
 				}
+				msgSize := proto.Size(m)
 				Mu.Lock()
-				Traffic += proto.Size(m)
+				Traffic += msgSize
 				Mu.Unlock()
+				if bm != nil {
+					bm.RecordAndLimit(from, msgSize)
+				}
 				destCh <- msg // blocking — matches TCP backpressure
 			}
 		}()
@@ -93,7 +108,7 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 		}
 		pipe := make(chan pendingMsg, MAXMESSAGE)
 
-		// Ingress: stamp each message with its delivery time.
+		// Ingress: rate-limit at NIC, then stamp delivery time.
 		go func() {
 			for m := range sendCh {
 				if m == nil {
@@ -103,9 +118,13 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 				if clone {
 					msg = proto.Clone(m).(*protobuf.Message)
 				}
+				msgSize := proto.Size(m)
 				Mu.Lock()
-				Traffic += proto.Size(m)
+				Traffic += msgSize
 				Mu.Unlock()
+				if bm != nil {
+					bm.RecordAndLimit(from, msgSize)
+				}
 				delay := lf(from, to) // per-message call → jitter takes effect
 				pipe <- pendingMsg{msg: msg, deliverAt: time.Now().Add(delay)}
 			}

@@ -34,6 +34,10 @@ func main() {
 	latencyProfile := flag.String("latency", "none", "Latency profile: none, aws")
 	cloneMsg := flag.Bool("clone", false, "Deep-copy messages between nodes (safer but slower)")
 	maxProcs := flag.Int("procs", 0, "GOMAXPROCS (0 = use all CPUs)")
+	bwLimit := flag.Float64("bw-limit", 0, "Per-machine send bandwidth limit in Mbps (0 = no limit)")
+	bwMonitor := flag.Bool("bw-monitor", false, "Enable bandwidth monitoring without rate limiting")
+	nodesPerMachine := flag.Int("nodes-per-machine", 4, "Nodes per virtual machine for bandwidth grouping")
+	bwWindowMs := flag.Int("bw-window-ms", 100, "Bandwidth monitoring window in ms for peak detection")
 	flag.Parse()
 
 	if *maxProcs > 0 {
@@ -61,7 +65,22 @@ func main() {
 		log.Printf("延迟模式: 无延迟（未知 profile %q）", *latencyProfile)
 	}
 
-	hub := core.NewInMemoryHub(uint32(totalNodes), latencyFunc, *cloneMsg)
+	// --- 带宽配置 (仅当用户显式请求时启用) ---
+	var bwCfg *core.BandwidthConfig
+	if *bwLimit > 0 || *bwMonitor {
+		bwCfg = &core.BandwidthConfig{
+			NodesPerMachine:    *nodesPerMachine,
+			BandwidthLimitMbps: *bwLimit,
+			MonitorWindowMs:    *bwWindowMs,
+		}
+		if *bwLimit > 0 {
+			log.Printf("带宽限制: %.0f Mbps/机器, %d 节点/机器, 窗口 %dms", *bwLimit, *nodesPerMachine, *bwWindowMs)
+		} else {
+			log.Printf("带宽监控: %d 节点/机器, 窗口 %dms (不限速)", *nodesPerMachine, *bwWindowMs)
+		}
+	}
+
+	hub := core.NewInMemoryHub(uint32(totalNodes), latencyFunc, *cloneMsg, bwCfg)
 
 	// --- 密钥生成 ---
 	log.Printf("为 %d 个节点生成 BLS 密钥...", totalNodes)
@@ -222,6 +241,12 @@ func main() {
 	wg.Wait()
 	elapsed := time.Since(startTime)
 	log.Printf("所有节点完成，耗时 %s", elapsed)
+
+	// --- 带宽统计 ---
+	if bm := hub.GetBandwidthManager(); bm != nil {
+		bm.Stop()
+		bm.PrintStats()
+	}
 
 	// --- 汇总结果 ---
 	log.Printf("=== 汇总性能结果 ===")
