@@ -242,6 +242,11 @@ func main() {
 	elapsed := time.Since(startTime)
 	log.Printf("所有节点完成，耗时 %s", elapsed)
 
+	// Wait for the in-memory network to drain so bandwidth stats reflect all
+	// queued sends, not just protocol goroutine completion.
+	hub.Close()
+	hub.WaitDrained()
+
 	// --- 带宽统计 ---
 	if bm := hub.GetBandwidthManager(); bm != nil {
 		bm.Stop()

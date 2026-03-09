@@ -22,6 +22,10 @@ type InMemoryHub struct {
 	latencyFunc     LatencyFunc
 	cloneMessages   bool
 	bwManager       *BandwidthManager
+	sendChannelsMu  sync.Mutex
+	sendChannels    []chan *protobuf.Message
+	pathWG          sync.WaitGroup
+	closeOnce       sync.Once
 }
 
 // NewInMemoryHub creates a hub for totalNodes participants.
@@ -54,6 +58,25 @@ func (h *InMemoryHub) GetReceiveChannel(pid uint32) chan *protobuf.Message {
 	return h.receiveChannels[pid]
 }
 
+// Close closes all path send channels. Call this only after protocol goroutines
+// have stopped sending.
+func (h *InMemoryHub) Close() {
+	h.closeOnce.Do(func() {
+		h.sendChannelsMu.Lock()
+		channels := append([]chan *protobuf.Message(nil), h.sendChannels...)
+		h.sendChannelsMu.Unlock()
+		for _, ch := range channels {
+			close(ch)
+		}
+	})
+}
+
+// WaitDrained blocks until all in-memory transport goroutines finish delivering
+// already-queued messages.
+func (h *InMemoryHub) WaitDrained() {
+	h.pathWG.Wait()
+}
+
 // MakeInMemSendChannel returns a channel that, when written to, delivers
 // the message to the destination node's receive channel.
 //
@@ -78,11 +101,16 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 	destCh := h.receiveChannels[to]
 	clone := h.cloneMessages
 	lf := h.latencyFunc
-	bm := h.bwManager // may be nil
+	bm := h.bwManager
 
-	if lf == nil {
-		// Fast path: no latency, direct forwarding.
+	h.sendChannelsMu.Lock()
+	h.sendChannels = append(h.sendChannels, sendCh)
+	h.sendChannelsMu.Unlock()
+
+	if lf == nil && (bm == nil || !bm.HasLimit()) {
+		h.pathWG.Add(1)
 		go func() {
+			defer h.pathWG.Done()
 			for m := range sendCh {
 				if m == nil {
 					continue
@@ -96,51 +124,62 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 				Traffic += msgSize
 				Mu.Unlock()
 				if bm != nil {
-					bm.RecordAndLimit(from, msgSize)
+					bm.Reserve(from, msgSize, time.Now())
 				}
 				destCh <- msg // blocking — matches TCP backpressure
 			}
 		}()
-	} else {
-		type pendingMsg struct {
-			msg       *protobuf.Message
-			deliverAt time.Time
-		}
-		pipe := make(chan pendingMsg, MAXMESSAGE)
-
-		// Ingress: rate-limit at NIC, then stamp delivery time.
-		go func() {
-			for m := range sendCh {
-				if m == nil {
-					continue
-				}
-				msg := m
-				if clone {
-					msg = proto.Clone(m).(*protobuf.Message)
-				}
-				msgSize := proto.Size(m)
-				Mu.Lock()
-				Traffic += msgSize
-				Mu.Unlock()
-				if bm != nil {
-					bm.RecordAndLimit(from, msgSize)
-				}
-				delay := lf(from, to) // per-message call → jitter takes effect
-				pipe <- pendingMsg{msg: msg, deliverAt: time.Now().Add(delay)}
-			}
-			close(pipe)
-		}()
-
-		// Egress: deliver in FIFO order, sleeping until delivery time.
-		go func() {
-			for p := range pipe {
-				if wait := time.Until(p.deliverAt); wait > 0 {
-					time.Sleep(wait)
-				}
-				destCh <- p.msg // blocking — matches TCP backpressure
-			}
-		}()
+		return sendCh
 	}
+
+	type pendingMsg struct {
+		msg       *protobuf.Message
+		deliverAt time.Time
+	}
+	pipe := make(chan pendingMsg, MAXMESSAGE)
+
+	h.pathWG.Add(1)
+	go func() {
+		defer h.pathWG.Done()
+		defer close(pipe)
+		for m := range sendCh {
+			if m == nil {
+				continue
+			}
+			msg := m
+			if clone {
+				msg = proto.Clone(m).(*protobuf.Message)
+			}
+			msgSize := proto.Size(m)
+			Mu.Lock()
+			Traffic += msgSize
+			Mu.Unlock()
+
+			enqueueAt := time.Now()
+			deliverAt := enqueueAt
+			if bm != nil {
+				reservation := bm.Reserve(from, msgSize, enqueueAt)
+				if reservation.TxEnd.After(deliverAt) {
+					deliverAt = reservation.TxEnd
+				}
+			}
+			if lf != nil {
+				deliverAt = deliverAt.Add(lf(from, to))
+			}
+			pipe <- pendingMsg{msg: msg, deliverAt: deliverAt}
+		}
+	}()
+
+	h.pathWG.Add(1)
+	go func() {
+		defer h.pathWG.Done()
+		for p := range pipe {
+			if wait := time.Until(p.deliverAt); wait > 0 {
+				time.Sleep(wait)
+			}
+			destCh <- p.msg // blocking — matches TCP backpressure
+		}
+	}()
 
 	return sendCh
 }

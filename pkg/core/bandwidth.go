@@ -2,72 +2,160 @@ package core
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 // BandwidthConfig describes per-machine bandwidth constraints for simulation.
-// Nodes are grouped into virtual "machines" sharing send bandwidth.
-// When BandwidthLimitMbps > 0, a token-bucket rate limiter enforces the cap.
-// Monitoring (peak send-rate tracking) is always active.
+// Nodes are grouped into virtual "machines" sharing a single send NIC.
 type BandwidthConfig struct {
 	NodesPerMachine    int
 	BandwidthLimitMbps float64 // 0 = no limit (monitor only)
-	MonitorWindowMs    int     // sampling window for peak detection; default 100
+	MonitorWindowMs    int     // peak window size; default 100
 }
 
-// machineState holds rate-limiter and monitoring state for one virtual machine.
+// BandwidthReservation is the host-NIC reservation for one message send.
+type BandwidthReservation struct {
+	TxStart    time.Time
+	TxEnd      time.Time
+	QueueDelay time.Duration
+	QueueBytes int64
+}
+
+type byteEvent struct {
+	at    time.Time
+	bytes int64
+}
+
+// machineState models one virtual machine with a single serialised egress NIC.
 type machineState struct {
-	// Token-bucket rate limiter (inactive when refillRate == 0).
-	mu         sync.Mutex
-	tokens     float64
-	maxTokens  float64
-	refillRate float64 // bytes per nanosecond
-	lastRefill time.Time
+	mu sync.Mutex
 
-	// Offered load: recorded BEFORE rate-limiter sleep.
-	// Shows what the protocol wants to send (the "demand").
-	offeredWindowBytes int64 // atomic
-	offeredPeakMbps    float64
+	nextFreeAt time.Time
+	bytesPerNs float64
 
-	// Actual throughput: recorded AFTER rate-limiter sleep.
-	// Shows what actually passed through the simulated NIC.
-	windowBytes int64 // atomic
-	peakMbps    float64
+	windowSize   time.Duration
+	windowSizeNs int64
+	windowSizeS  float64
 
-	totalBytes int64 // atomic; cumulative (same for offered/actual since no drops)
+	offeredEvents []byteEvent
+	offeredBytes  int64
 
-	peakMu sync.Mutex // protects both peak fields
+	actualWindowBytes map[int64]float64
+
+	offeredPeakMbps float64
+	actualPeakMbps  float64
+	peakQueueDelay  time.Duration
+	peakQueueBytes  int64
+	totalBytes      int64
 }
 
-// sendBytes records offered load, rate-limits (if active), then records actual throughput.
-func (ms *machineState) sendBytes(n int) {
-	atomic.AddInt64(&ms.offeredWindowBytes, int64(n))
-	atomic.AddInt64(&ms.totalBytes, int64(n))
+func newMachineState(limitMbps float64, windowSize time.Duration) *machineState {
+	var bytesPerNs float64
+	if limitMbps > 0 {
+		bytesPerNs = limitMbps * 1_000_000 / 8 / 1_000_000_000
+	}
+	return &machineState{
+		bytesPerNs:        bytesPerNs,
+		windowSize:        windowSize,
+		windowSizeNs:      int64(windowSize),
+		windowSizeS:       windowSize.Seconds(),
+		actualWindowBytes: make(map[int64]float64),
+	}
+}
 
-	if ms.refillRate > 0 {
-		ms.mu.Lock()
-		now := time.Now()
-		elapsed := float64(now.Sub(ms.lastRefill).Nanoseconds())
-		ms.tokens += ms.refillRate * elapsed
-		if ms.tokens > ms.maxTokens {
-			ms.tokens = ms.maxTokens
-		}
-		ms.lastRefill = now
-		ms.tokens -= float64(n)
-		var wait time.Duration
-		if ms.tokens < 0 {
-			wait = time.Duration(-ms.tokens / ms.refillRate)
-		}
-		ms.mu.Unlock()
-		if wait > 0 {
-			time.Sleep(wait)
-		}
+// reserve records demand and, when enabled, books a slice of the virtual NIC.
+func (ms *machineState) reserve(enqueueAt time.Time, bytes int) BandwidthReservation {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	msgBytes := int64(bytes)
+	ms.recordOfferedLocked(enqueueAt, msgBytes)
+	ms.totalBytes += msgBytes
+
+	if ms.bytesPerNs <= 0 {
+		return BandwidthReservation{TxStart: enqueueAt, TxEnd: enqueueAt}
 	}
 
-	atomic.AddInt64(&ms.windowBytes, int64(n))
+	txStart := enqueueAt
+	if txStart.Before(ms.nextFreeAt) {
+		txStart = ms.nextFreeAt
+	}
+	queueDelay := txStart.Sub(enqueueAt)
+	queueBytes := int64(math.Ceil(float64(queueDelay.Nanoseconds()) * ms.bytesPerNs))
+	if queueDelay > ms.peakQueueDelay {
+		ms.peakQueueDelay = queueDelay
+	}
+	if queueBytes > ms.peakQueueBytes {
+		ms.peakQueueBytes = queueBytes
+	}
+
+	txDuration := durationForBytes(msgBytes, ms.bytesPerNs)
+	txEnd := txStart.Add(txDuration)
+	ms.recordActualLocked(txStart, txEnd, msgBytes)
+	ms.nextFreeAt = txEnd
+
+	return BandwidthReservation{
+		TxStart:    txStart,
+		TxEnd:      txEnd,
+		QueueDelay: queueDelay,
+		QueueBytes: queueBytes,
+	}
+}
+
+func (ms *machineState) recordOfferedLocked(now time.Time, bytes int64) {
+	cutoff := now.Add(-ms.windowSize)
+	trim := 0
+	for trim < len(ms.offeredEvents) && ms.offeredEvents[trim].at.Before(cutoff) {
+		ms.offeredBytes -= ms.offeredEvents[trim].bytes
+		trim++
+	}
+	if trim > 0 {
+		copy(ms.offeredEvents, ms.offeredEvents[trim:])
+		ms.offeredEvents = ms.offeredEvents[:len(ms.offeredEvents)-trim]
+	}
+
+	ms.offeredEvents = append(ms.offeredEvents, byteEvent{at: now, bytes: bytes})
+	ms.offeredBytes += bytes
+
+	rateMbps := float64(ms.offeredBytes) * 8 / (ms.windowSizeS * 1_000_000)
+	if rateMbps > ms.offeredPeakMbps {
+		ms.offeredPeakMbps = rateMbps
+	}
+}
+
+func (ms *machineState) recordActualLocked(start, end time.Time, bytes int64) {
+	if !end.After(start) {
+		return
+	}
+
+	startNs := start.UnixNano()
+	endNs := end.UnixNano()
+	rateBytesPerNs := float64(bytes) / float64(endNs-startNs)
+
+	startIdx := startNs / ms.windowSizeNs
+	endIdx := (endNs - 1) / ms.windowSizeNs
+
+	for idx := startIdx; idx <= endIdx; idx++ {
+		windowStart := idx * ms.windowSizeNs
+		windowEnd := windowStart + ms.windowSizeNs
+		overlapStart := maxInt64(startNs, windowStart)
+		overlapEnd := minInt64(endNs, windowEnd)
+		if overlapEnd <= overlapStart {
+			continue
+		}
+
+		bytesInWindow := rateBytesPerNs * float64(overlapEnd-overlapStart)
+		totalBytes := ms.actualWindowBytes[idx] + bytesInWindow
+		ms.actualWindowBytes[idx] = totalBytes
+
+		rateMbps := totalBytes * 8 / (ms.windowSizeS * 1_000_000)
+		if rateMbps > ms.actualPeakMbps {
+			ms.actualPeakMbps = rateMbps
+		}
+	}
 }
 
 // BandwidthManager tracks and optionally limits per-machine send bandwidth.
@@ -76,170 +164,88 @@ type BandwidthManager struct {
 	nodesPerMachine int
 	windowSize      time.Duration
 	limitMbps       float64
-	stopCh          chan struct{}
-	wg              sync.WaitGroup
 }
 
-// NewBandwidthManager creates a manager with one machineState per virtual
-// machine (ceil(totalNodes / nodesPerMachine)). A background goroutine
-// samples window counters for peak-rate detection.
 func NewBandwidthManager(totalNodes uint32, cfg *BandwidthConfig) *BandwidthManager {
 	npm := cfg.NodesPerMachine
 	if npm <= 0 {
 		npm = 1
 	}
-	numMachines := (int(totalNodes) + npm - 1) / npm
 
 	windowMs := cfg.MonitorWindowMs
 	if windowMs <= 0 {
 		windowMs = 100
 	}
+	windowSize := time.Duration(windowMs) * time.Millisecond
 
-	var bytesPerNs float64
-	if cfg.BandwidthLimitMbps > 0 {
-		bytesPerNs = cfg.BandwidthLimitMbps * 1_000_000 / 8 / 1_000_000_000
-	}
-
-	// Burst = 10ms of bandwidth (small enough to enforce meaningful rate
-	// limiting, large enough to absorb individual message sizes).
-	// Floor at 64KB for monitor-only mode.
-	maxTokens := bytesPerNs * 10_000_000 // 10ms
-	if maxTokens < 65536 {
-		maxTokens = 65536
-	}
-
-	now := time.Now()
+	numMachines := (int(totalNodes) + npm - 1) / npm
 	machines := make([]*machineState, numMachines)
 	for i := range machines {
-		machines[i] = &machineState{
-			tokens:     0, // start empty — no free startup burst
-			maxTokens:  maxTokens,
-			refillRate: bytesPerNs,
-			lastRefill: now,
-		}
+		machines[i] = newMachineState(cfg.BandwidthLimitMbps, windowSize)
 	}
 
-	bm := &BandwidthManager{
+	return &BandwidthManager{
 		machines:        machines,
 		nodesPerMachine: npm,
-		windowSize:      time.Duration(windowMs) * time.Millisecond,
+		windowSize:      windowSize,
 		limitMbps:       cfg.BandwidthLimitMbps,
-		stopCh:          make(chan struct{}),
-	}
-
-	bm.wg.Add(1)
-	go bm.monitorLoop()
-	return bm
-}
-
-func (bm *BandwidthManager) monitorLoop() {
-	defer bm.wg.Done()
-	ticker := time.NewTicker(bm.windowSize)
-	defer ticker.Stop()
-
-	windowSec := bm.windowSize.Seconds()
-	for {
-		select {
-		case <-ticker.C:
-			for _, ms := range bm.machines {
-				offBytes := atomic.SwapInt64(&ms.offeredWindowBytes, 0)
-				actBytes := atomic.SwapInt64(&ms.windowBytes, 0)
-
-				ms.peakMu.Lock()
-				if offBytes > 0 {
-					rate := float64(offBytes) * 8 / (windowSec * 1_000_000)
-					if rate > ms.offeredPeakMbps {
-						ms.offeredPeakMbps = rate
-					}
-				}
-				if actBytes > 0 {
-					rate := float64(actBytes) * 8 / (windowSec * 1_000_000)
-					if rate > ms.peakMbps {
-						ms.peakMbps = rate
-					}
-				}
-				ms.peakMu.Unlock()
-			}
-		case <-bm.stopCh:
-			return
-		}
 	}
 }
 
-// RecordAndLimit accounts for and optionally rate-limits a send by nodeID.
-func (bm *BandwidthManager) RecordAndLimit(nodeID uint32, msgSizeBytes int) {
+func (bm *BandwidthManager) HasLimit() bool {
+	return bm != nil && bm.limitMbps > 0
+}
+
+// Reserve accounts for and optionally schedules a send by nodeID.
+func (bm *BandwidthManager) Reserve(nodeID uint32, msgSizeBytes int, enqueueAt time.Time) BandwidthReservation {
 	idx := int(nodeID) / bm.nodesPerMachine
 	if idx >= len(bm.machines) {
 		idx = len(bm.machines) - 1
 	}
-	bm.machines[idx].sendBytes(msgSizeBytes)
+	return bm.machines[idx].reserve(enqueueAt, msgSizeBytes)
 }
 
-// Stop terminates the background monitor goroutine and flushes the last
-// incomplete window into peak stats.
-func (bm *BandwidthManager) Stop() {
-	close(bm.stopCh)
-	bm.wg.Wait()
+// Stop is kept for API compatibility. Statistics are updated online.
+func (bm *BandwidthManager) Stop() {}
 
-	windowSec := bm.windowSize.Seconds()
-	for _, ms := range bm.machines {
-		offBytes := atomic.LoadInt64(&ms.offeredWindowBytes)
-		actBytes := atomic.LoadInt64(&ms.windowBytes)
-		ms.peakMu.Lock()
-		if offBytes > 0 {
-			rate := float64(offBytes) * 8 / (windowSec * 1_000_000)
-			if rate > ms.offeredPeakMbps {
-				ms.offeredPeakMbps = rate
-			}
-		}
-		if actBytes > 0 {
-			rate := float64(actBytes) * 8 / (windowSec * 1_000_000)
-			if rate > ms.peakMbps {
-				ms.peakMbps = rate
-			}
-		}
-		ms.peakMu.Unlock()
-	}
-}
-
-// MachineStats holds per-machine bandwidth statistics.
 type MachineStats struct {
-	MachineID       int
-	OfferedPeakMbps float64 // pre-throttle: what the protocol wanted to send
-	ActualPeakMbps  float64 // post-throttle: what actually went out
-	TotalBytes      int64
+	MachineID         int
+	OfferedPeakMbps   float64
+	ActualPeakMbps    float64
+	PeakQueueDelayMs  float64
+	PeakQueueBytesMB  float64
+	TotalBytesMB      float64
 }
 
-// GetStats returns a snapshot of per-machine statistics.
 func (bm *BandwidthManager) GetStats() []MachineStats {
 	stats := make([]MachineStats, len(bm.machines))
 	for i, ms := range bm.machines {
-		ms.peakMu.Lock()
+		ms.mu.Lock()
 		stats[i] = MachineStats{
-			MachineID:       i,
-			OfferedPeakMbps: ms.offeredPeakMbps,
-			ActualPeakMbps:  ms.peakMbps,
-			TotalBytes:      atomic.LoadInt64(&ms.totalBytes),
+			MachineID:        i,
+			OfferedPeakMbps:  ms.offeredPeakMbps,
+			ActualPeakMbps:   ms.actualPeakMbps,
+			PeakQueueDelayMs: float64(ms.peakQueueDelay.Microseconds()) / 1000,
+			PeakQueueBytesMB: float64(ms.peakQueueBytes) / (1024 * 1024),
+			TotalBytesMB:     float64(ms.totalBytes) / (1024 * 1024),
 		}
-		ms.peakMu.Unlock()
+		ms.mu.Unlock()
 	}
 	return stats
 }
 
-// PrintStats prints a human-readable bandwidth report.
 func (bm *BandwidthManager) PrintStats() {
 	stats := bm.GetStats()
 	hasLimit := bm.limitMbps > 0
 
 	fmt.Println()
 	fmt.Println("=== 机器带宽统计 (发送方向) ===")
-	fmt.Printf("配置: 每台机器 %d 节点", bm.nodesPerMachine)
+	fmt.Printf("配置: 每台机器 %d 节点, 监控窗口 %v", bm.nodesPerMachine, bm.windowSize)
 	if hasLimit {
-		fmt.Printf(", 限速 %.0f Mbps", bm.limitMbps)
+		fmt.Printf(", 限速 %.0f Mbps\n", bm.limitMbps)
 	} else {
-		fmt.Printf(", 不限速 (仅监控)")
+		fmt.Printf(", 不限速 (仅监控)\n")
 	}
-	fmt.Printf(", 监控窗口 %v\n", bm.windowSize)
 
 	sorted := make([]MachineStats, len(stats))
 	copy(sorted, stats)
@@ -254,11 +260,11 @@ func (bm *BandwidthManager) PrintStats() {
 	}
 
 	if hasLimit {
-		fmt.Printf("%-8s  %-16s  %16s  %16s  %12s\n",
-			"机器ID", "节点范围", "需求峰值(Mbps)", "实际峰值(Mbps)", "总发送(MB)")
+		fmt.Printf("%-8s  %-16s  %16s  %16s  %12s  %12s  %12s\n",
+			"机器ID", "节点范围", "需求峰值(Mbps)", "实际峰值(Mbps)", "峰值排队ms", "峰值排队MB", "总发送MB")
 	} else {
 		fmt.Printf("%-8s  %-16s  %16s  %12s\n",
-			"机器ID", "节点范围", "峰值(Mbps)", "总发送(MB)")
+			"机器ID", "节点范围", "需求峰值(Mbps)", "总发送MB")
 	}
 
 	machine0Shown := false
@@ -276,7 +282,6 @@ func (bm *BandwidthManager) PrintStats() {
 		fmt.Printf("  ... (省略 %d 台机器) ...\n", len(sorted)-showCount)
 	}
 
-	// Find machine with highest offered peak (typically the Leader machine).
 	var topOffered MachineStats
 	for _, s := range stats {
 		if s.OfferedPeakMbps > topOffered.OfferedPeakMbps {
@@ -286,38 +291,57 @@ func (bm *BandwidthManager) PrintStats() {
 
 	fmt.Println()
 	fmt.Printf("最高需求峰值: 机器 %d\n", topOffered.MachineID)
-
+	fmt.Printf("  需求峰值 (协议想发): %.2f Mbps\n", topOffered.OfferedPeakMbps)
 	if hasLimit {
-		fmt.Printf("  需求峰值 (协议想发): %.2f Mbps\n", topOffered.OfferedPeakMbps)
-		fmt.Printf("  实际峰值 (限速之后): %.2f Mbps\n", topOffered.ActualPeakMbps)
-
-		utilization := topOffered.ActualPeakMbps / bm.limitMbps * 100
-		if utilization > 100 {
-			utilization = 100
-		}
-		fmt.Printf("  带宽利用率: %.1f%%\n", utilization)
-
-		if topOffered.OfferedPeakMbps > bm.limitMbps*1.05 {
-			fmt.Printf("  诊断: 需求 > 限制, NIC 带宽是瓶颈 (符合预期)\n")
+		fmt.Printf("  实际峰值 (虚拟 NIC): %.2f Mbps\n", topOffered.ActualPeakMbps)
+		fmt.Printf("  峰值排队: %.2f ms / %.2f MB\n", topOffered.PeakQueueDelayMs, topOffered.PeakQueueBytesMB)
+		fmt.Printf("  带宽利用率: %.1f%%\n", topOffered.ActualPeakMbps/bm.limitMbps*100)
+		if topOffered.OfferedPeakMbps > bm.limitMbps*1.05 && topOffered.ActualPeakMbps >= bm.limitMbps*0.95 {
+			fmt.Printf("  诊断: 需求超过限制且实际峰值接近上限, NIC 带宽是瓶颈\n")
+		} else if topOffered.OfferedPeakMbps <= bm.limitMbps*1.05 {
+			fmt.Printf("  诊断: 需求峰值未明显超过上限, 瓶颈可能不在网络带宽\n")
 		} else {
-			fmt.Printf("  诊断: 需求 ≈ 或 < 限制, 瓶颈可能不在网络带宽\n")
+			fmt.Printf("  诊断: 需求很高但实际峰值未贴近上限, 需要继续排查本地性能或统计口径\n")
 		}
-	} else {
-		fmt.Printf("  峰值: %.2f Mbps\n", topOffered.OfferedPeakMbps)
 	}
 }
 
 func (bm *BandwidthManager) printRow(s MachineStats, showBoth bool) {
 	startNode := s.MachineID * bm.nodesPerMachine
 	endNode := startNode + bm.nodesPerMachine - 1
-	totalMB := float64(s.TotalBytes) / (1024 * 1024)
 	if showBoth {
-		fmt.Printf("%-8d  [%4d - %4d]      %16.2f  %16.2f  %12.2f\n",
+		fmt.Printf("%-8d  [%4d - %4d]      %16.2f  %16.2f  %12.2f  %12.2f  %12.2f\n",
 			s.MachineID, startNode, endNode,
-			s.OfferedPeakMbps, s.ActualPeakMbps, totalMB)
+			s.OfferedPeakMbps, s.ActualPeakMbps,
+			s.PeakQueueDelayMs, s.PeakQueueBytesMB, s.TotalBytesMB)
 	} else {
 		fmt.Printf("%-8d  [%4d - %4d]      %16.2f  %12.2f\n",
 			s.MachineID, startNode, endNode,
-			s.OfferedPeakMbps, totalMB)
+			s.OfferedPeakMbps, s.TotalBytesMB)
 	}
+}
+
+func durationForBytes(bytes int64, bytesPerNs float64) time.Duration {
+	if bytes <= 0 || bytesPerNs <= 0 {
+		return 0
+	}
+	ns := math.Ceil(float64(bytes) / bytesPerNs)
+	if ns < 1 {
+		ns = 1
+	}
+	return time.Duration(ns)
+}
+
+func minInt64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
