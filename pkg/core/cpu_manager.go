@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -323,25 +324,24 @@ func (cm *CPUManager) printRow(s CPUMachineStats) {
 		s.PeakQueueDelayMs, s.AvgQueueDelayMs, s.UtilizationPct, s.TotalRunTimeS)
 }
 
-var (
-	cpuManagerMu sync.RWMutex
-	cpuManager   *CPUManager
-)
+type cpuManagerRef struct{ mgr *CPUManager }
+
+var cpuManagerVal atomic.Value // stores cpuManagerRef
 
 func SetCPUManager(mgr *CPUManager) {
-	cpuManagerMu.Lock()
-	cpuManager = mgr
-	cpuManagerMu.Unlock()
+	cpuManagerVal.Store(cpuManagerRef{mgr})
 }
 
 func GetCPUManager() *CPUManager {
-	cpuManagerMu.RLock()
-	defer cpuManagerMu.RUnlock()
-	return cpuManager
+	v := cpuManagerVal.Load()
+	if v == nil {
+		return nil
+	}
+	return v.(cpuManagerRef).mgr
 }
 
 func ClearCPUManager() {
-	SetCPUManager(nil)
+	cpuManagerVal.Store(cpuManagerRef{nil})
 }
 
 func WithCPULimit(nodeID uint32, op string, fn func()) {
