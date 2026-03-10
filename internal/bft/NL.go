@@ -17,7 +17,6 @@ import (
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/sign/bls"
 	"gopkg.in/yaml.v2"
 )
 
@@ -62,7 +61,7 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	// Step1: 全局广播NoLiveness消息
 	A_bytes := nlConfig.A.Bytes()
 	// 对 H|A 进行签名
-	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(nlConfig.H)), A_bytes...))
+	sig, _ := cpuBLSSign(p.PID, suite, p.SK, append(utils.Uint32ToBytes(uint32(nlConfig.H)), A_bytes...))
 	NoLivenessMessage := core.Encapsulation("NoLiveness", utils.Uint32ToBytes(1), p.PID, &protobuf.NoLiveness{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(nlConfig.H),
@@ -82,7 +81,7 @@ func NLFinder(p *party.HonestParty, nlConfig *NLConfig) {
 	}
 	payload := (core.Decapsulation("NL_Response", NLResponseMessage)).(*protobuf.NL_Response)
 
-	err := bls.Verify(suite, utils.BytesToPoint(payload.Aggpk), append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Aggsig)
+	err := cpuBLSVerify(p.PID, suite, utils.BytesToPoint(payload.Aggpk), append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Aggsig)
 	if err != nil {
 		log.Println("invalid signature of NL_Response message", err)
 		return
@@ -145,7 +144,7 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], append(utils.Uint32ToBytes(payload.H), payload.A...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NoLiveness message", err)
 			continue
@@ -166,8 +165,8 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 		}
 	}
 
-	aggSig, _ := bls.AggregateSignatures(suite, signatures...)
-	aggPubKey := bls.AggregatePublicKeys(suite, pubkeys...)
+	aggSig, _ := cpuBLSAggregateSignatures(p.PID, suite, signatures...)
+	aggPubKey := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys...)
 	NLResponseMessage := core.Encapsulation("NL_Response", utils.Uint32ToBytes(1), p.PID, &protobuf.NL_Response{
 		ShardID: uint32(nlConfig.NLShardID),
 		H:       uint32(nlConfig.H),
@@ -191,7 +190,7 @@ func NLHelper(p *party.HonestParty, nlConfig *NLConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.A...), payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.A...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NL_Confirm message", err)
 			continue

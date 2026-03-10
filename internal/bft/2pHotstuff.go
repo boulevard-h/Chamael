@@ -10,7 +10,6 @@ import (
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 // 收集足量的New_View消息后广播Prepare消息
@@ -77,10 +76,10 @@ func Precommit_BroadCast(p *party.HonestParty, e uint32, txs []string, isGlobal 
 			break
 		}
 	}
-	aggSig, _ := bls.AggregateSignatures(suite, signatures...)
-	aggPubKey := bls.AggregatePublicKeys(suite, pubkeys...)
+	aggSig, _ := cpuBLSAggregateSignatures(p.PID, suite, signatures...)
+	aggPubKey := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys...)
 	local := utils.MessageEncap([][]byte{[]byte(strings.Join(txs, "")), utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
-	err := bls.Verify(suite, aggPubKey, local, aggSig)
+	err := cpuBLSVerify(p.PID, suite, aggPubKey, local, aggSig)
 	if err != nil {
 		fmt.Println("AggSig1(txs||vote1||epoch) verification failed(Malicious Participator):", err)
 		return
@@ -126,10 +125,10 @@ func Commit_BroadCast(p *party.HonestParty, e uint32, txs []string, outputChanne
 			break
 		}
 	}
-	aggSig, _ := bls.AggregateSignatures(suite, signatures...)
-	aggPubKey := bls.AggregatePublicKeys(suite, pubkeys...)
+	aggSig, _ := cpuBLSAggregateSignatures(p.PID, suite, signatures...)
+	aggPubKey := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys...)
 	local := utils.MessageEncap([][]byte{utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
-	err := bls.Verify(suite, aggPubKey, local, aggSig)
+	err := cpuBLSVerify(p.PID, suite, aggPubKey, local, aggSig)
 	if err != nil {
 		fmt.Println("AggSig2(vote2||epoch) verification failed(Malicious Participator):", err)
 		return
@@ -191,7 +190,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				vote = 1
 				smessage := utils.MessageEncap([][]byte{Txs, utils.Uint32ToBytes(vote), utils.Uint32ToBytes(e)})
 
-				sigPrepare, _ := bls.Sign(suite, p.SK, smessage) //sign(txs||vote1||epoch)
+				sigPrepare, _ := cpuBLSSign(p.PID, suite, p.SK, smessage) //sign(txs||vote1||epoch)
 				Prepare_VoteMessage := core.Encapsulation("Prepare_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.Prepare_Vote{
 					Vote: vote,
 					Sig:  sigPrepare,
@@ -212,7 +211,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 
 				sver := utils.MessageEncap([][]byte{Txs, utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
 				AggPK := utils.BytesToPoint(payload.Aggpk)
-				err := bls.Verify(suite, AggPK, sver, payload.Aggsig)
+				err := cpuBLSVerify(p.PID, suite, AggPK, sver, payload.Aggsig)
 				if err != nil {
 					fmt.Println("AggSig1(txs||vote1||epoch) verification failed(Malicious Leader):", err)
 					return
@@ -222,7 +221,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 				vote = 1
 				smessage := utils.MessageEncap([][]byte{utils.Uint32ToBytes(vote), utils.Uint32ToBytes(e)})
 
-				sigPrecommit, _ := bls.Sign(suite, p.SK, smessage) //sign(vote2||epoch)
+				sigPrecommit, _ := cpuBLSSign(p.PID, suite, p.SK, smessage) //sign(vote2||epoch)
 				Precommit_VoteMessage := core.Encapsulation("Precommit_Vote", utils.Uint32ToBytes(e), p.PID, &protobuf.Precommit_Vote{
 					Vote: vote,
 					Sig:  sigPrecommit,
@@ -241,7 +240,7 @@ func HotStuffProcess(p *party.HonestParty, epoch int, inputChannel chan []string
 
 				sver := utils.MessageEncap([][]byte{utils.Uint32ToBytes(1), utils.Uint32ToBytes(e)})
 				AggPK := utils.BytesToPoint(payload.Aggpk)
-				err := bls.Verify(suite, AggPK, sver, payload.Aggsig)
+				err := cpuBLSVerify(p.PID, suite, AggPK, sver, payload.Aggsig)
 				if err != nil {
 					fmt.Println("AggSig2(vote2||epoch) verification failed(Malicious Leader):", err)
 					return

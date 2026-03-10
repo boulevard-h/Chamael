@@ -23,6 +23,8 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	n := flag.Int("n", 4, "Nodes per shard")
 	f := flag.Int("f", 1, "Max faulty nodes per shard")
 	m := flag.Int("m", 3, "Number of shards")
@@ -38,6 +40,7 @@ func main() {
 	bwMonitor := flag.Bool("bw-monitor", false, "Enable bandwidth monitoring without rate limiting")
 	nodesPerMachine := flag.Int("nodes-per-machine", 4, "Nodes per virtual machine for bandwidth grouping")
 	bwWindowMs := flag.Int("bw-window-ms", 100, "Bandwidth monitoring window in ms for peak detection")
+	cpuCoresPerMachine := flag.Int("cpu-cores-per-machine", 0, "Per-machine CPU slot limit for wrapped hotspots (0 = disabled)")
 	flag.Parse()
 
 	if *maxProcs > 0 {
@@ -78,6 +81,19 @@ func main() {
 		} else {
 			log.Printf("带宽监控: %d 节点/机器, 窗口 %dms (不限速)", *nodesPerMachine, *bwWindowMs)
 		}
+	}
+
+	// --- CPU 配置 (仅当用户显式请求时启用) ---
+	var cpuMgr *core.CPUManager
+	if *cpuCoresPerMachine > 0 {
+		cpuMgr = core.NewCPUManager(uint32(totalNodes), &core.CPUConfig{
+			NodesPerMachine: *nodesPerMachine,
+			CoresPerMachine: *cpuCoresPerMachine,
+		})
+		core.SetCPUManager(cpuMgr)
+		defer core.ClearCPUManager()
+		log.Printf("CPU限制: %d 核/机器, %d 节点/机器 (仅限制 BLS/FastAcc/MerkleTree 热点)",
+			*cpuCoresPerMachine, *nodesPerMachine)
 	}
 
 	hub := core.NewInMemoryHub(uint32(totalNodes), latencyFunc, *cloneMsg, bwCfg)
@@ -251,6 +267,10 @@ func main() {
 	if bm := hub.GetBandwidthManager(); bm != nil {
 		bm.Stop()
 		bm.PrintStats()
+	}
+	if cpuMgr != nil {
+		cpuMgr.Stop()
+		cpuMgr.PrintStats()
 	}
 
 	// --- 汇总结果 ---

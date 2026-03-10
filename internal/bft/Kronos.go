@@ -13,7 +13,6 @@ import (
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 // 按输入分片分类交易
@@ -101,7 +100,7 @@ func InpufBFT_Result_Handler(p *party.HonestParty, e uint32, InputResultTobeDone
 		m := <-p.GetMessage("InputBFT_Result", utils.Uint32ToBytes(e))
 		payload := (core.Decapsulation("InputBFT_Result", m)).(*protobuf.InputBFT_Result)
 		AggPK := utils.BytesToPoint(payload.Aggpk)
-		err := bls.Verify(suite, AggPK, payload.Root, payload.Aggsig)
+		err := cpuBLSVerify(p.PID, suite, AggPK, payload.Root, payload.Aggsig)
 		if err != nil {
 			fmt.Println("AggSig(root) verification failed:", err)
 			return
@@ -210,16 +209,16 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		// 合并 txs_ctx2[int(p.Snumber)] 和 txs_itx2
 		txs_ctx2[int(p.Snumber)] = append(txs_ctx2[int(p.Snumber)], txs_itx2...)
 		// 调用 FastAcc 快速计算累加器
-		acc := crypto.FastAcc(txs_ctx2[int(p.Snumber)], crypto.HashToPrimeFromSha256, acc_setup)
+		acc := cpuFastAcc(p.PID, txs_ctx2[int(p.Snumber)], crypto.HashToPrimeFromSha256, acc_setup)
 		p.Acc = acc
 
 		// 清空 txs_ctx2[int(p.Snumber)]
 		txs_ctx2[int(p.Snumber)] = nil
 
 		//对于跨片交易,建立默克尔树,并对树根签名
-		mktree, _ := crypto.NewMerkleTree(utils.MapToSlice(txs_ctx2, int(p.M)))
+		mktree, _ := cpuNewMerkleTree(p.PID, utils.MapToSlice(txs_ctx2, int(p.M)))
 		Root := mktree.GetMerkleTreeRoot()
-		sigRoot, _ := bls.Sign(suite, p.SK, Root)
+		sigRoot, _ := cpuBLSSign(p.PID, suite, p.SK, Root)
 
 		/*
 			如果自己是跨片协调者:
@@ -261,9 +260,9 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 				signatures = append(signatures, sigRoot)
 				pubkeys = append(pubkeys, p.PK[p.PID])
 			}
-			aggSig, _ := bls.AggregateSignatures(suite, signatures...)
-			aggPubKey := bls.AggregatePublicKeys(suite, pubkeys...)
-			err := bls.Verify(suite, aggPubKey, Root, aggSig)
+			aggSig, _ := cpuBLSAggregateSignatures(p.PID, suite, signatures...)
+			aggPubKey := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys...)
+			err := cpuBLSVerify(p.PID, suite, aggPubKey, Root, aggSig)
 			if err != nil {
 				fmt.Println("Invalid Mktree Root(Invalid aggSig)", err)
 				return

@@ -17,7 +17,6 @@ import (
 
 	"github.com/bits-and-blooms/bitset"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/sign/bls"
 	"gopkg.in/yaml.v2"
 )
 
@@ -62,7 +61,7 @@ func RCStarter(p *party.HonestParty, rcConfig *RCConfig) {
 	// Step1: 全局广播ReConfig消息
 	A_bytes := rcConfig.A.Bytes()
 	// 对 H|A 进行签名
-	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(rcConfig.H)), A_bytes...))
+	sig, _ := cpuBLSSign(p.PID, suite, p.SK, append(utils.Uint32ToBytes(uint32(rcConfig.H)), A_bytes...))
 	ReConfigMessage := core.Encapsulation("ReConfig", utils.Uint32ToBytes(1), p.PID, &protobuf.ReConfig{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(rcConfig.H),
@@ -98,7 +97,7 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.A...), payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.A...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of ReConfig message", err)
 			continue
@@ -123,7 +122,7 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 	}
 	NewNodes_bytes, _ := NewNodes_bm.MarshalBinary()
 	// 对 A|NewNodes 进行签名
-	sig, _ := bls.Sign(suite, p.SK, append(A_bytes, NewNodes_bytes...))
+	sig, _ := cpuBLSSign(p.PID, suite, p.SK, append(A_bytes, NewNodes_bytes...))
 
 	RC_CheckOKMessage := core.Encapsulation("RC_CheckOK", utils.Uint32ToBytes(1), p.PID, &protobuf.RC_CheckOK{
 		ShardID:  uint32(rcConfig.RCShardID),
@@ -152,7 +151,7 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], append(payload.A, payload.NewNodes...), payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], append(payload.A, payload.NewNodes...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of RC_CheckOK message", err)
 			continue
@@ -172,7 +171,7 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 	}
 
 	// 对 NewNodes 进行签名
-	sig, _ = bls.Sign(suite, p.SK, NewNodes_bytes)
+	sig, _ = cpuBLSSign(p.PID, suite, p.SK, NewNodes_bytes)
 	RC_NewEpochMessage := core.Encapsulation("RC_NewEpoch", utils.Uint32ToBytes(1), p.PID, &protobuf.RC_NewEpoch{
 		ShardID:  uint32(rcConfig.RCShardID),
 		NewNodes: NewNodes_bytes,
@@ -196,7 +195,7 @@ func RCHelper(p *party.HonestParty, rcConfig *RCConfig) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], payload.NewNodes, payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], payload.NewNodes, payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of RC_NewEpoch message", err)
 			continue

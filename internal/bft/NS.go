@@ -17,7 +17,6 @@ import (
 	"github.com/bits-and-blooms/bitset"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/sign/bls"
 	"gopkg.in/yaml.v2"
 )
 
@@ -59,11 +58,11 @@ func CheckSigs(p *party.HonestParty, NSShard int, H uint32, A1_bytes, A2_bytes, 
 		pubkeys2 = append(pubkeys2, p.PK[NSShard*int(p.N)+int(i)])
 	}
 
-	aggpubkey1 := bls.AggregatePublicKeys(suite, pubkeys1...)
-	aggpubkey2 := bls.AggregatePublicKeys(suite, pubkeys2...)
+	aggpubkey1 := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys1...)
+	aggpubkey2 := cpuBLSAggregatePublicKeys(p.PID, suite, pubkeys2...)
 
-	valid_err1 := bls.Verify(suite, aggpubkey1, append(utils.Uint32ToBytes(H), A1_bytes...), aggsig1)
-	valid_err2 := bls.Verify(suite, aggpubkey2, append(utils.Uint32ToBytes(H), A2_bytes...), aggsig2)
+	valid_err1 := cpuBLSVerify(p.PID, suite, aggpubkey1, append(utils.Uint32ToBytes(H), A1_bytes...), aggsig1)
+	valid_err2 := cpuBLSVerify(p.PID, suite, aggpubkey2, append(utils.Uint32ToBytes(H), A2_bytes...), aggsig2)
 	if valid_err1 != nil || valid_err2 != nil {
 		fmt.Println("Sign-Verify-Failed", p.PID)
 		os.Exit(1)
@@ -117,7 +116,7 @@ func NSFinder(p *party.HonestParty, NSConfig *NSConfig) {
 
 	// step2: global broadcast NSChoice message
 	// 对 H|A1 进行签名
-	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(h)), A1_bytes...))
+	sig, _ := cpuBLSSign(p.PID, suite, p.SK, append(utils.Uint32ToBytes(uint32(h)), A1_bytes...))
 	NSChoiceMessage := core.Encapsulation("NS_Choice", utils.Uint32ToBytes(1), p.PID, &protobuf.NS_Choice{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(h),
@@ -168,7 +167,7 @@ func NSHelperIntra(p *party.HonestParty) {
 
 	// step2: global broadcast NSChoice message
 	// 对 H|A1 进行签名
-	sig, _ := bls.Sign(suite, p.SK, append(utils.Uint32ToBytes(uint32(payload.H)), payload.A1...))
+	sig, _ := cpuBLSSign(p.PID, suite, p.SK, append(utils.Uint32ToBytes(uint32(payload.H)), payload.A1...))
 	NSChoiceMessage := core.Encapsulation("NS_Choice", utils.Uint32ToBytes(1), p.PID, &protobuf.NS_Choice{
 		ShardID: uint32(p.Snumber),
 		H:       uint32(payload.H),
@@ -235,7 +234,7 @@ func NSHelperCross(p *party.HonestParty) {
 			continue
 		}
 
-		err := bls.Verify(suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.AChoice...), payload.Sig)
+		err := cpuBLSVerify(p.PID, suite, p.PK[m.Sender], append(utils.Uint32ToBytes(uint32(payload.H)), payload.AChoice...), payload.Sig)
 		if err != nil {
 			log.Println("invalid signature of NS_Choice message", err)
 			continue
