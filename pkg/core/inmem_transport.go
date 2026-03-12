@@ -14,18 +14,23 @@ import (
 type LatencyFunc func(from, to uint32) time.Duration
 
 // InMemoryHub replaces TCP with Go channels for single-process simulation.
-// Each node gets a receive channel; send channels route messages directly
-// to the destination's receive channel with optional latency injection.
+// Each node gets a receive channel; messages are routed directly to the
+// destination's receive channel with optional latency/bandwidth injection.
 type InMemoryHub struct {
 	totalNodes      uint32
 	receiveChannels []chan *protobuf.Message
 	latencyFunc     LatencyFunc
 	cloneMessages   bool
 	bwManager       *BandwidthManager
-	sendChannelsMu  sync.Mutex
-	sendChannels    []chan *protobuf.Message
-	pathWG          sync.WaitGroup
-	closeOnce       sync.Once
+
+	// pendingWG tracks in-flight delayed deliveries (time.AfterFunc goroutines).
+	pendingWG sync.WaitGroup
+
+	// Legacy channel-based path (kept for backward compat with TCP mode).
+	sendChannelsMu sync.Mutex
+	sendChannels   []chan *protobuf.Message
+	pathWG         sync.WaitGroup
+	closeOnce      sync.Once
 }
 
 // NewInMemoryHub creates a hub for totalNodes participants.
@@ -58,8 +63,67 @@ func (h *InMemoryHub) GetReceiveChannel(pid uint32) chan *protobuf.Message {
 	return h.receiveChannels[pid]
 }
 
-// Close closes all path send channels. Call this only after protocol goroutines
-// have stopped sending.
+// Deliver sends a message from node `from` to node `to` through the simulated
+// network. It computes bandwidth reservation + latency inline and schedules
+// delivery via time.AfterFunc for delayed messages, or delivers immediately
+// when no delay is needed.
+//
+// This replaces the old per-(from,to) goroutine architecture, reducing
+// goroutine count from O(N²) to O(N).
+func (h *InMemoryHub) Deliver(from, to uint32, msg *protobuf.Message) {
+	if msg == nil {
+		return
+	}
+	if h.cloneMessages {
+		msg = proto.Clone(msg).(*protobuf.Message)
+	}
+
+	msgSize := proto.Size(msg)
+	TrafficBytes.Add(int64(msgSize))
+
+	destCh := h.receiveChannels[to]
+
+	// Compute delivery delay from bandwidth + latency.
+	var delay time.Duration
+	if h.bwManager != nil {
+		now := time.Now()
+		reservation := h.bwManager.Reserve(from, msgSize, now)
+		if d := reservation.TxEnd.Sub(now); d > 0 {
+			delay = d
+		}
+	}
+	if h.latencyFunc != nil {
+		delay += h.latencyFunc(from, to)
+	}
+
+	if delay <= 0 {
+		// No simulated delay — try non-blocking send first to avoid spawning
+		// a goroutine when the channel has capacity.
+		select {
+		case destCh <- msg:
+			return
+		default:
+		}
+		// Channel full — deliver in a short-lived goroutine to avoid blocking
+		// the caller's protocol goroutine (prevents deadlock on mutual sends).
+		h.pendingWG.Add(1)
+		go func() {
+			defer h.pendingWG.Done()
+			destCh <- msg
+		}()
+		return
+	}
+
+	// Delayed delivery via the Go runtime timer wheel — much cheaper than a
+	// persistent goroutine per (from, to) pair.
+	h.pendingWG.Add(1)
+	time.AfterFunc(delay, func() {
+		defer h.pendingWG.Done()
+		destCh <- msg
+	})
+}
+
+// Close closes all legacy send channels. Call after protocol goroutines stop.
 func (h *InMemoryHub) Close() {
 	h.closeOnce.Do(func() {
 		h.sendChannelsMu.Lock()
@@ -71,31 +135,15 @@ func (h *InMemoryHub) Close() {
 	})
 }
 
-// WaitDrained blocks until all in-memory transport goroutines finish delivering
-// already-queued messages.
+// WaitDrained blocks until all in-flight deliveries (both legacy goroutine
+// paths and new time.AfterFunc paths) have completed.
 func (h *InMemoryHub) WaitDrained() {
 	h.pathWG.Wait()
+	h.pendingWG.Wait()
 }
 
-// MakeInMemSendChannel returns a channel that, when written to, delivers
-// the message to the destination node's receive channel.
-//
-// Semantics match the original TCP path:
-//   - Delivery is blocking (backpressure, never silently drops).
-//   - Each message independently experiences its own network delay
-//     (latency is not serialised across consecutive messages).
-//   - FIFO ordering within the same (from, to) pair is preserved.
-//
-// Implementation: a two-stage pipeline.
-//   Ingress goroutine reads from sendCh, stamps each message with a
-//   delivery-time (now + per-message latency including jitter), and
-//   pushes it into an internal pipe channel.
-//   Egress goroutine pops from the pipe, sleeps until the delivery-time
-//   if it hasn't passed yet, then does a blocking send to destCh.
-//
-// Because both the pipe and destCh are buffered, the ingress goroutine
-// is not blocked by the per-message delay — multiple messages can be
-// "in flight" simultaneously, just like a real network.
+// MakeInMemSendChannel is the legacy per-(from,to) channel path.
+// Kept for backward compatibility; prefer Deliver() for new code.
 func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Message {
 	sendCh := make(chan *protobuf.Message, MAXMESSAGE)
 	destCh := h.receiveChannels[to]
@@ -120,13 +168,11 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 					msg = proto.Clone(m).(*protobuf.Message)
 				}
 				msgSize := proto.Size(m)
-				Mu.Lock()
-				Traffic += msgSize
-				Mu.Unlock()
+				TrafficBytes.Add(int64(msgSize))
 				if bm != nil {
 					bm.Reserve(from, msgSize, time.Now())
 				}
-				destCh <- msg // blocking — matches TCP backpressure
+				destCh <- msg
 			}
 		}()
 		return sendCh
@@ -151,9 +197,7 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 				msg = proto.Clone(m).(*protobuf.Message)
 			}
 			msgSize := proto.Size(m)
-			Mu.Lock()
-			Traffic += msgSize
-			Mu.Unlock()
+			TrafficBytes.Add(int64(msgSize))
 
 			enqueueAt := time.Now()
 			deliverAt := enqueueAt
@@ -177,7 +221,7 @@ func (h *InMemoryHub) MakeInMemSendChannel(from, to uint32) chan *protobuf.Messa
 			if wait := time.Until(p.deliverAt); wait > 0 {
 				time.Sleep(wait)
 			}
-			destCh <- p.msg // blocking — matches TCP backpressure
+			destCh <- p.msg
 		}
 	}()
 

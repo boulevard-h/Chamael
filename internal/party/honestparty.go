@@ -34,6 +34,9 @@ type HonestParty struct {
 	// 通信量统计，单位为MB
 	IntraShardTraffic float64 // 片内通信量
 	CrossShardTraffic float64 // 跨片通信量
+
+	// hub-direct send path: bypasses per-(from,to) goroutines entirely.
+	hub *core.InMemoryHub
 }
 
 func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool) *HonestParty {
@@ -100,27 +103,24 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	if des < p.N*p.M {
-		// 计算消息大小并转换为MB
-		// 估算消息大小：Type(字符串) + ID(字节切片) + sender(4字节) + data(字节切片)
-		messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024) // 转换为MB
+	if des >= p.N*p.M {
+		return errors.New("Destination id is too large")
+	}
 
-		// 判断目标节点是否与当前节点在同一分片内
-		desShard := des / p.N // 计算目标节点所在的分片编号
+	messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024)
+	desShard := des / p.N
+	if desShard == p.Snumber {
+		p.IntraShardTraffic += messageSize
+	} else {
+		p.CrossShardTraffic += messageSize
+	}
 
-		// 统计通信量
-		if desShard == p.Snumber {
-			// 片内通信
-			p.IntraShardTraffic += messageSize
-		} else {
-			// 跨片通信
-			p.CrossShardTraffic += messageSize
-		}
-
-		p.sendChannels[des] <- m
+	if p.hub != nil {
+		p.hub.Deliver(p.PID, des, m)
 		return nil
 	}
-	return errors.New("Destination id is too large")
+	p.sendChannels[des] <- m
+	return nil
 }
 
 // Broadcast a message to all parties
@@ -183,13 +183,24 @@ func (p *HonestParty) InitReceiveChannelFromHub(hub *core.InMemoryHub) {
 
 // InitSendChannelFromHub wires send channels through the in-memory hub
 // instead of TCP connections. Used by the single-process simulator.
+// DEPRECATED: prefer InitDirectSendFromHub which avoids O(N²) goroutines.
 func (p *HonestParty) InitSendChannelFromHub(hub *core.InMemoryHub) {
 	for i := uint32(0); i < p.N*p.M; i++ {
 		p.sendChannels[i] = hub.MakeInMemSendChannel(p.PID, i)
 	}
 }
 
+// InitDirectSendFromHub uses the hub's Deliver() method directly, bypassing
+// per-(from,to) channels and goroutines entirely. This reduces goroutine
+// count from O(N²) to O(N).
+func (p *HonestParty) InitDirectSendFromHub(hub *core.InMemoryHub) {
+	p.hub = hub
+}
+
 func (p *HonestParty) checkInit() bool {
+	if p.hub != nil {
+		return true
+	}
 	if p.sendChannels == nil {
 		return false
 	}

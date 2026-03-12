@@ -158,7 +158,7 @@ func main() {
 		parties[i].InitReceiveChannelFromHub(hub)
 	}
 	for i := 0; i < totalNodes; i++ {
-		parties[i].InitSendChannelFromHub(hub)
+		parties[i].InitDirectSendFromHub(hub)
 	}
 
 	// --- 生成交易 ---
