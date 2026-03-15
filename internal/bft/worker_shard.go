@@ -51,6 +51,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 
 		fmt.Println("Start Epoch", e)
 		epoch_start_time := time.Now()
+		p.RecordWorkerEpochStart(e)
 
 		txs_in := append([]string{}, (<-itx_inputChannel)...)
 		txs_in = append(txs_in, (<-ctx_inputChannel)...)
@@ -170,6 +171,9 @@ func waitForMVBAResults(p *party.HonestParty, epochNum uint32, thresholdMain int
 			}
 			if payload.Shard != p.Snumber || payload.Epoch != epochNum {
 				continue
+			}
+			if len(seen) == 0 {
+				p.RecordWorkerMVBAResult(epochNum)
 			}
 			seen[m.Sender] = struct{}{}
 			distinct[string(payload.Result)]++

@@ -8,6 +8,7 @@ import (
 	"Chamael/pkg/txs"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -31,6 +32,32 @@ func isInternal(tx string) bool {
 
 	// 如果输入和输出分片都相同，认为是片内交易
 	return true
+}
+
+func summarizeDurations(durations []time.Duration) (int, float64, float64) {
+	if len(durations) == 0 {
+		return 0, 0, 0
+	}
+
+	var total time.Duration
+	var max time.Duration
+	for _, duration := range durations {
+		total += duration
+		if duration > max {
+			max = duration
+		}
+	}
+
+	avgMillis := float64(total) / float64(len(durations)) / float64(time.Millisecond)
+	maxMillis := float64(max) / float64(time.Millisecond)
+	return len(durations), avgMillis, maxMillis
+}
+
+func formatDurationOrNA(duration time.Duration, ok bool) string {
+	if !ok {
+		return "n/a"
+	}
+	return duration.Truncate(time.Millisecond).String()
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
@@ -173,6 +200,77 @@ roundDelayDone:
 
 	latency := (1-c.Crate)*avgBlockDelay + c.Crate*(avgBlockDelay+avgRoundDelay)
 	isWorkerShard := p.Snumber != 0
+	workerSnapshots := p.WorkerTimingSnapshots()
+	mainSnapshots := p.MainTimingSnapshots()
+
+	workerRBCToBitmapDurations := make([]time.Duration, 0, len(workerSnapshots))
+	workerBitmapRoundTripDurations := make([]time.Duration, 0, len(workerSnapshots))
+	workerEpochToResultDurations := make([]time.Duration, 0, len(workerSnapshots))
+	for _, snapshot := range workerSnapshots {
+		if snapshot.HasEpochStart && snapshot.HasBitmapSent {
+			workerRBCToBitmapDurations = append(workerRBCToBitmapDurations, snapshot.RBCToBitmap)
+		}
+		if snapshot.HasBitmapSent && snapshot.HasFirstResult {
+			workerBitmapRoundTripDurations = append(workerBitmapRoundTripDurations, snapshot.BitmapRoundTrip)
+		}
+		if snapshot.HasEpochStart && snapshot.HasFirstResult {
+			workerEpochToResultDurations = append(workerEpochToResultDurations, snapshot.EpochToFirstResult)
+		}
+	}
+
+	mainBitmapFanInDurations := make([]time.Duration, 0, len(mainSnapshots))
+	mainMVBADurations := make([]time.Duration, 0, len(mainSnapshots))
+	mainResultBroadcastDurations := make([]time.Duration, 0, len(mainSnapshots))
+	mainFirstBitmapToBroadcastDurations := make([]time.Duration, 0, len(mainSnapshots))
+	for _, snapshot := range mainSnapshots {
+		if snapshot.HasFirstBitmap && snapshot.HasThresholdReady {
+			mainBitmapFanInDurations = append(mainBitmapFanInDurations, snapshot.BitmapFanIn)
+		}
+		if snapshot.HasMVBAStart && snapshot.HasMVBADone {
+			mainMVBADurations = append(mainMVBADurations, snapshot.MVBADuration)
+		}
+		if snapshot.HasMVBADone && snapshot.HasResultBroadcastDone {
+			mainResultBroadcastDurations = append(mainResultBroadcastDurations, snapshot.ResultBroadcastDuration)
+		}
+		if snapshot.HasFirstBitmap && snapshot.HasResultBroadcastDone {
+			mainFirstBitmapToBroadcastDurations = append(mainFirstBitmapToBroadcastDurations, snapshot.FirstBitmapToBroadcast)
+		}
+	}
+
+	workerRBCToBitmapCount, workerRBCToBitmapAvg, workerRBCToBitmapMax := summarizeDurations(workerRBCToBitmapDurations)
+	workerBitmapRoundTripCount, workerBitmapRoundTripAvg, workerBitmapRoundTripMax := summarizeDurations(workerBitmapRoundTripDurations)
+	workerEpochToResultCount, workerEpochToResultAvg, workerEpochToResultMax := summarizeDurations(workerEpochToResultDurations)
+	mainBitmapFanInCount, mainBitmapFanInAvg, mainBitmapFanInMax := summarizeDurations(mainBitmapFanInDurations)
+	mainMVBACount, mainMVBAAvg, mainMVBAMax := summarizeDurations(mainMVBADurations)
+	mainResultBroadcastCount, mainResultBroadcastAvg, mainResultBroadcastMax := summarizeDurations(mainResultBroadcastDurations)
+	mainFirstBitmapToBroadcastCount, mainFirstBitmapToBroadcastAvg, mainFirstBitmapToBroadcastMax := summarizeDurations(mainFirstBitmapToBroadcastDurations)
+
+	var workerTimingDetails strings.Builder
+	for _, snapshot := range workerSnapshots {
+		fmt.Fprintf(
+			&workerTimingDetails,
+			"WorkerTiming shard=%d epoch=%d rbc_to_bitmap=%s bitmap_roundtrip=%s epoch_to_first_result=%s\n",
+			snapshot.Shard,
+			snapshot.Epoch,
+			formatDurationOrNA(snapshot.RBCToBitmap, snapshot.HasEpochStart && snapshot.HasBitmapSent),
+			formatDurationOrNA(snapshot.BitmapRoundTrip, snapshot.HasBitmapSent && snapshot.HasFirstResult),
+			formatDurationOrNA(snapshot.EpochToFirstResult, snapshot.HasEpochStart && snapshot.HasFirstResult),
+		)
+	}
+
+	var mainTimingDetails strings.Builder
+	for _, snapshot := range mainSnapshots {
+		fmt.Fprintf(
+			&mainTimingDetails,
+			"MainTiming work_shard=%d epoch=%d bitmap_fanin=%s mvba=%s result_broadcast=%s first_bitmap_to_broadcast=%s\n",
+			snapshot.WorkShard,
+			snapshot.Epoch,
+			formatDurationOrNA(snapshot.BitmapFanIn, snapshot.HasFirstBitmap && snapshot.HasThresholdReady),
+			formatDurationOrNA(snapshot.MVBADuration, snapshot.HasMVBAStart && snapshot.HasMVBADone),
+			formatDurationOrNA(snapshot.ResultBroadcastDuration, snapshot.HasMVBADone && snapshot.HasResultBroadcastDone),
+			formatDurationOrNA(snapshot.FirstBitmapToBroadcast, snapshot.HasFirstBitmap && snapshot.HasResultBroadcastDone),
+		)
+	}
 
 	// 修改日志消息，添加延迟信息
 	logMessage := fmt.Sprintf(
@@ -180,16 +278,37 @@ roundDelayDone:
 			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
 			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n"+
 			"Intra-Shard Traffic: %.2f MB\nCross-Shard Traffic: %.6f MB\n"+
+			"Worker RBC->Bitmap Count: %d\nWorker RBC->Bitmap Avg: %.2f ms\nWorker RBC->Bitmap Max: %.2f ms\n"+
+			"Worker Bitmap RoundTrip Count: %d\nWorker Bitmap RoundTrip Avg: %.2f ms\nWorker Bitmap RoundTrip Max: %.2f ms\n"+
+			"Worker Epoch->MVBAResult Count: %d\nWorker Epoch->MVBAResult Avg: %.2f ms\nWorker Epoch->MVBAResult Max: %.2f ms\n"+
+			"Main Bitmap FanIn Count: %d\nMain Bitmap FanIn Avg: %.2f ms\nMain Bitmap FanIn Max: %.2f ms\n"+
+			"Main MVBA Count: %d\nMain MVBA Avg: %.2f ms\nMain MVBA Max: %.2f ms\n"+
+			"Main ResultBroadcast Count: %d\nMain ResultBroadcast Avg: %.2f ms\nMain ResultBroadcast Max: %.2f ms\n"+
+			"Main FirstBitmap->Broadcast Count: %d\nMain FirstBitmap->Broadcast Avg: %.2f ms\nMain FirstBitmap->Broadcast Max: %.2f ms\n"+
 			"Dispatcher Dropped: %d\nSend Reconnects: %d\nReceive Accept Retries: %d\nReceive Breakdowns: %d\n"+
-			"RBC Timeout Count: %d\nMVBA Timeout Count: %d\n",
+			"RBC Timeout Count: %d\nMVBA Timeout Count: %d\n"+
+			"Timing Note: worker round-trip and shard0 MVBA are recorded on different nodes, compare trends rather than subtracting them directly.\n",
 		p.Snumber, isWorkerShard,
 		totalTransactions, internalTransactions, crossShardTransactions,
 		totalTPS, internalTPS, crossShardTPS,
 		avgBlockDelay, avgRoundDelay, latency,
 		p.IntraShardTrafficMB(), p.CrossShardTrafficMB(),
+		workerRBCToBitmapCount, workerRBCToBitmapAvg, workerRBCToBitmapMax,
+		workerBitmapRoundTripCount, workerBitmapRoundTripAvg, workerBitmapRoundTripMax,
+		workerEpochToResultCount, workerEpochToResultAvg, workerEpochToResultMax,
+		mainBitmapFanInCount, mainBitmapFanInAvg, mainBitmapFanInMax,
+		mainMVBACount, mainMVBAAvg, mainMVBAMax,
+		mainResultBroadcastCount, mainResultBroadcastAvg, mainResultBroadcastMax,
+		mainFirstBitmapToBroadcastCount, mainFirstBitmapToBroadcastAvg, mainFirstBitmapToBroadcastMax,
 		core.LoadDroppedMessages(), core.LoadSendReconnects(), core.LoadReceiveAcceptRetries(), core.LoadReceiveBreakdowns(),
 		bft.LoadRBCTimeoutCount(), bft.LoadMVBATimeoutCount(),
 	)
+	if workerTimingDetails.Len() > 0 {
+		logMessage += workerTimingDetails.String()
+	}
+	if mainTimingDetails.Len() > 0 {
+		logMessage += mainTimingDetails.String()
+	}
 	_, err = fmt.Fprintln(file, logMessage)
 	if err != nil {
 		fmt.Printf("Failed to write to log file: %v\n", err)

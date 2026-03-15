@@ -142,6 +142,7 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 		}
 
 		msg := core.Encapsulation("RBC_Bitmap", rbcBitmapStreamID(), p.PID, &protobuf.RBC_Bitmap{Shard: p.Snumber, Epoch: epoch, Bitmap: bm, RbcHash: rbcHash})
+		p.RecordWorkerBitmapSent(epoch)
 		_ = p.Shard_Broadcast(msg, 0)
 		bitmapBroadcasted = true
 		Debugf(p, "epoch %d broadcast RBC_Bitmap -> shard0 (ones=%d, ids=%v, hashes=%d)", epoch, bitmapCountOnes(bm, p.N), bitmapOnes(bm, p.N), len(rbcHash))

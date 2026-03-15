@@ -85,6 +85,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 				seen:     make(map[uint32]struct{}, thresholdNodes),
 			}
 			aggs[key] = agg
+			p.RecordMainBitmapFirst(payload.Shard, payload.Epoch)
 		}
 
 		if _, ok := agg.seen[m.Sender]; ok {
@@ -100,6 +101,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 			continue
 		}
 
+		p.RecordMainBitmapThresholdReady(key.shard, key.epoch)
 		started[key] = struct{}{}
 		orCopy := append([]byte(nil), agg.orBitmap...)
 		delete(aggs, key)
@@ -110,10 +112,13 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 		mvbaWg.Add(1)
 		go func(workShard, epoch uint32, value []byte) {
 			defer mvbaWg.Done()
+			p.RecordMainMVBAStart(workShard, epoch)
 			mvbaID := []byte(fmt.Sprintf("mvba|workshard=%d|epoch=%d", workShard, epoch))
 			result := mvba.MainProcess(p, mvbaID, value, nil, nil)
+			p.RecordMainMVBADone(workShard, epoch)
 			msg := core.Encapsulation("MVBA_Result", mvbaResultID(workShard, epoch), p.PID, &protobuf.MVBA_Result{Shard: workShard, Epoch: epoch, Result: result})
 			_ = p.Shard_Broadcast(msg, workShard)
+			p.RecordMainResultBroadcastDone(workShard, epoch)
 			Debugf(p, "epoch %d shard %d MVBA done", epoch, workShard)
 		}(key.shard, key.epoch, orCopy)
 	}

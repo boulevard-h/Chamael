@@ -41,6 +41,7 @@ type HonestParty struct {
 	TrackTraffic          bool
 	intraShardTrafficByte uint64
 	crossShardTrafficByte uint64
+	timings               timingTracker
 }
 
 func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, trackTraffic bool) *HonestParty {
