@@ -30,12 +30,12 @@ PortList:
 - 9242
 - 9243
 - 9244
-Prepare: 5
+Prepare: 5  # InitReceiveChannel 和 InitSendChannel 之间的Sleep时间（单位：s）
 Statistic: ./statistics
-WaitEpoch: 6
-WaitBuf: 20
-MessageBuffer: 4096
-TrackTraffic: true
-Txnum: 10000
-Crate: 0.1
-TestEpochs: 5
+WaitEpoch: 6  # 每个Epoch的等待时间（单位：s），总体等待时间 = WaitEpoch * (TestEpochs+1)
+WaitBuf: 20  # Process退出并计算TPS到真的exit之前等待的时间（单位：s）
+MessageBuffer: 4096  # 内部网络/调度Channel的大小
+TrackTraffic: true  # 是否跟踪节点之间的通信流量
+Txnum: 20000  # 每个Epoch，每个Worker节点生成的跨片交易数量
+Crate: 0.1  # 跨片交易的比例
+TestEpochs: 3  # 测试的Epoch数量

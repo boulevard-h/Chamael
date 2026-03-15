@@ -37,7 +37,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 		return
 	}
 
-	thresholdMain := 2*int(p.F) + 1
+	thresholdMain := 1
 	var completeWg sync.WaitGroup
 	startedEpochs := 0
 	var completedEpochs uint32

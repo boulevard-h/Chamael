@@ -53,7 +53,7 @@ def generate_yaml_config(public_ips, nodes_per_server, start_port):
         'TrackTraffic': True,
         'Txnum': 1000,
         'Crate': 0.1,
-        'TestEpochs': 5
+        'TestEpochs': 3
     }
 
     return yaml.dump(config, sort_keys=False, default_flow_style=False)
