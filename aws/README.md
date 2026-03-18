@@ -34,18 +34,26 @@ chmod 777 env-batch.sh
 
 #### （2）部署配置文件
 
-* 在`config.py`中设置参数：
+* 在`config.py`顶部设置参数：
 
-| 函数名称::参数名称                      | 参数含义                 |
-| --------------------------------------- | ------------------------ |
-| generate_yaml_config:::nodes_per_server | 每台服务器上部署的节点数 |
-| generate_yaml_config:::N                | 每个分片中的节点数量     |
-| generate_yaml_config:::M                | 分片个数                 |
-| generate_bash_script:::node             | 每台服务器上部署的节点数 |
+| 常量名称                        | 参数含义 |
+| -------------------------------- | -------- |
+| NODES_PER_SHARD                  | 每个分片中的节点数量 |
+| BYZANTINE_NODES_PER_SHARD        | 每个分片中的恶意节点数量 |
+| SHARD_COUNT                      | 分片个数 |
+| WORK_SHARD_NODES_PER_SERVER      | work shard 每台服务器部署的节点数 |
+| START_PORT                       | 起始端口 |
+| REGION_NAMES                     | 拉取 AWS 实例时扫描的 region 列表 |
 
-* 本地运行`config.py`，将生成的YAML配置拷贝替换到`config_local.yaml`(整体)；将生成的Bash脚本拷贝替换到`aws-pre.txt`、`aws-run.txt`和`aws-log.txt`的对应位置。
+* 本地运行`config.py`，脚本会：
+  * 按 CPU 核数从高到低挑出 `NODES_PER_SHARD` 台服务器分给 `shard0`，且 `shard0` 的每个节点独占一台机器；
+  * 将剩余服务器按 `region` 排序，再顺序分给各个 work shard，以尽可能让一个 shard 落在同一 region；
+  * 打印机器分配摘要，供部署前人工确认；
+  * 输出 YAML 配置和 Bash 头部变量块（包含 `N`、`nodeCountsVar`、`pubIPsVar`）。
 
-* 将`aws-pre.txt`、`aws-run.txt`和`aws-log.txt`上传到**Chamael中控的/home/ubuntu目录下**；将`config_local.yaml`上传到**Chamael中控的/home/ubuntu/Chamael/cmd/main目录下**。
+* 将生成的 YAML 配置替换到 `config_local.yaml`；将 Bash 头部变量块替换到 `aws-pre.sh`、`aws-run.sh`、`aws-pull.sh`、`aws-log.sh` 和 `aws-kill.sh` 顶部对应位置。
+
+* 将这些脚本上传到**Chamael中控的/home/ubuntu目录下**；将`config_local.yaml`上传到**Chamael中控的/home/ubuntu/Chamael/cmd/main目录下**。
 
 * 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
 
@@ -57,8 +65,8 @@ chmod 777 env-batch.sh
 * 在**Chamael中控的/home/ubuntu目录下**运行	
 
   ```shell
-  dos2unix aws-log.txt aws-pre.txt aws-run.txt
-  ./aws-pre.txt
+  dos2unix aws-log.sh aws-pre.sh aws-run.sh aws-pull.sh aws-kill.sh
+  ./aws-pre.sh
   ```
 
 ​	向各个节点服务器的**Chamael/configs/\* **传入**一致的**配置文件。
@@ -67,15 +75,15 @@ chmod 777 env-batch.sh
 
 ##### kronos
 
-* 编辑`aws-run.txt`：
+* 编辑`aws-run.sh`：
 
   ```shell
-   ./start_all.sh $(( i * node )) $(( (i+1) * node-1 )) 0 \"2025-03-30 03:08:00.000\"
+   nohup ./start_all.sh ${start_node} ${end_node} 0 \"2025-03-30 03:08:00.000\" > server-$i.out
   ```
 
 ​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
 
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.txt`，完成之后运行`./aws-log.txt`
+* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.sh`，完成之后运行`./aws-log.sh`
 
 * 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
 

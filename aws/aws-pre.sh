@@ -3,8 +3,12 @@
 # the number of AWS servers to remove
 N=xxx
 
-# the number of nodes on each server
-node=xxx
+# the number of nodes hosted on each AWS server
+nodeCountsVar=(
+[0]=xxx
+[1]=xxx
+[2]=xxx
+)
 
 # public IPs --- This is the public IPs of AWS servers
 pubIPsVar=(
@@ -14,15 +18,15 @@ pubIPsVar=(
 )
 
 # 上传配置文件到所有AWS服务器
+offset=0
 i=0
 while [ $i -le $(( N-1 )) ]; do
+    node_count=${nodeCountsVar[i]}
+    start_node=$offset
+    end_node=$(( offset + node_count - 1 ))
     (
     echo "[➤] 开始上传到服务器 ${pubIPsVar[i]}"
 
-    # 计算该服务器需要的节点范围
-    start_node=$(( i * node ))
-    end_node=$(( (i + 1) * node - 1 ))
-    
     # 上传该服务器需要的配置文件
     for (( j=start_node; j<=end_node; j++ )); do
         scp -q -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" \
@@ -32,6 +36,7 @@ while [ $i -le $(( N-1 )) ]; do
     
     echo "[✓] 完成服务器 ${pubIPsVar[i]}"
     ) &
+    offset=$(( offset + node_count ))
     i=$(( i+1 ))
 done
 

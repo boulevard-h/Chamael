@@ -3,8 +3,12 @@
 # the number of AWS servers to remove
 N=xxx
 
-# the number of nodes on each server
-node=xxx
+# the number of nodes hosted on each AWS server
+nodeCountsVar=(
+[0]=xxx
+[1]=xxx
+[2]=xxx
+)
 
 # public IPs --- This is the public IPs of AWS servers
 pubIPsVar=(
