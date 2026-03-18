@@ -154,9 +154,9 @@ func main() {
 	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
 	bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitEpoch)
-	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
+	logger.CalculateTPS(c, p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
 	if p.Debug {
-		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
+		logger.RenameHonest(c, p, homeDir+"/Chamael/log/")
 	}
 	// Grace period before exit so cross-node TCP sends can drain.
 	if c.WaitBuf > 0 {

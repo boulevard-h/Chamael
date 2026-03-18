@@ -44,7 +44,7 @@ func RenameCommon(c config.CommonConfig, p party.CommonParty, path string) {
 	}
 }
 
-func RenameHonest(c config.HonestConfig, p party.HonestParty, path string) {
+func RenameHonest(c config.HonestConfig, p *party.HonestParty, path string) {
 	dir_send := fmt.Sprintf("%s%s", path, c.IPList[p.PID]+":"+c.PortList[p.PID])
 	newdir_send := fmt.Sprintf("%snode%d", path, p.PID)
 	os.Rename(dir_send, newdir_send)

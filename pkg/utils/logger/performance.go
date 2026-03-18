@@ -61,7 +61,7 @@ func formatDurationOrNA(duration time.Duration, ok bool) string {
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
-func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration) {
+func CalculateTPS(c config.HonestConfig, p *party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration) {
 	var earliestTime, latestTime time.Time
 	var totalTransactions, internalTransactions, crossShardTransactions int
 
@@ -315,7 +315,7 @@ roundDelayDone:
 	}
 }
 
-func WriteToPerformanceLog(p party.HonestParty, path string, str string) {
+func WriteToPerformanceLog(p *party.HonestParty, path string, str string) {
 	// 打开日志文件
 	logFilePath := fmt.Sprintf("%s(Performance)node%d", path, p.PID)
 	file, err := os.Create(logFilePath)

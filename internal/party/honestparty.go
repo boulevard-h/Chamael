@@ -210,11 +210,11 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 	return core.GetOrCreateDispatchChannel(p.dispatcheChannels, messageType, ID)
 }
 
-func (p HonestParty) IntraShardTrafficMB() float64 {
+func (p *HonestParty) IntraShardTrafficMB() float64 {
 	return float64(atomic.LoadUint64(&p.intraShardTrafficByte)) / (1024 * 1024)
 }
 
-func (p HonestParty) CrossShardTrafficMB() float64 {
+func (p *HonestParty) CrossShardTrafficMB() float64 {
 	return float64(atomic.LoadUint64(&p.crossShardTrafficByte)) / (1024 * 1024)
 }
 
