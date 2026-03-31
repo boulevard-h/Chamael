@@ -27,12 +27,12 @@ func isInternalTx(tx string) bool {
 	return true
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, waitEpoch int) {
+func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, waitEpoch int, mainchainMVBASimM int) {
 	timeChannel <- time.Now()
 	deadlineAt := time.Now().Add(kronosTotalTimeout(uint32(epoch), waitEpoch))
 
 	if p.Snumber == 0 {
-		mainShardProcess(p, uint32(epoch), waitEpoch)
+		mainShardProcess(p, uint32(epoch), waitEpoch, mainchainMVBASimM)
 		timeChannel <- time.Now()
 		return
 	}

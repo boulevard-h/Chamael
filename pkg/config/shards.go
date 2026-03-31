@@ -57,6 +57,19 @@ func validateShardConfig(mainN, workN, mainF, workF, shardCount int) error {
 	return nil
 }
 
+func normalizeMainchainMVBASimM(simulatedM *int, actualM int) {
+	if *simulatedM <= 0 {
+		*simulatedM = actualM
+	}
+}
+
+func validateMainchainMVBASimM(simulatedM int) error {
+	if simulatedM <= 0 {
+		return fmt.Errorf("MainchainMVBASimM must be positive")
+	}
+	return nil
+}
+
 func totalNodes(mainN, workN, shardCount int) int {
 	return topology.TotalNodes(mainN, workN, shardCount)
 }

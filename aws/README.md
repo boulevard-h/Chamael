@@ -43,6 +43,7 @@ chmod 777 env-batch.sh
 | F_M                              | 主链（`shard0`）中的恶意节点数量 |
 | F_W                              | 每个 work shard 中的恶意节点数量 |
 | SHARD_COUNT                      | 分片个数 |
+| MAINCHAIN_MVBA_SIM_M             | 仅用于模拟主链 MVBA 输入负担的分片数；实际拓扑仍由 `SHARD_COUNT`/`m` 控制 |
 | WORK_SHARD_NODES_PER_SERVER      | work shard 每台服务器部署的节点数 |
 | START_PORT                       | 起始端口 |
 | REGION_NAMES                     | 拉取 AWS 实例时扫描的 region 列表 |

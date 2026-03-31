@@ -10,6 +10,7 @@ N_W = 4
 F_M = 1
 F_W = 1
 SHARD_COUNT = 25
+MAINCHAIN_MVBA_SIM_M = SHARD_COUNT
 WORK_SHARD_NODES_PER_SERVER = 4
 START_PORT = 9233
 REGION_NAMES = ["us-east-1", "ap-east-1", "ap-northeast-1", "eu-west-2"]
@@ -240,6 +241,7 @@ def generate_yaml_config(
     mainchain_byzantine_nodes,
     work_shard_byzantine_nodes,
     shard_count,
+    mainchain_mvba_sim_m,
     start_port,
 ):
     ip_list = []
@@ -256,6 +258,7 @@ def generate_yaml_config(
         "F_M": mainchain_byzantine_nodes,
         "F_W": work_shard_byzantine_nodes,
         "m": shard_count,
+        "MainchainMVBASimM": mainchain_mvba_sim_m,
         "IPList": ip_list,
         "PID": 0,
         "SID": 0,
@@ -409,6 +412,7 @@ def main():
         mainchain_byzantine_nodes=F_M,
         work_shard_byzantine_nodes=F_W,
         shard_count=SHARD_COUNT,
+        mainchain_mvba_sim_m=MAINCHAIN_MVBA_SIM_M,
         start_port=START_PORT,
     )
     bash_script = generate_bash_script(plan.assignments)

@@ -21,7 +21,23 @@ type bitmapAggregator struct {
 	seen     map[uint32]struct{}
 }
 
-func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
+func mainchainMVBAInputCopies(simulatedM int) int {
+	if simulatedM <= 1 {
+		return 1
+	}
+	return simulatedM - 1
+}
+
+func expandMainchainMVBAInput(value []byte, simulatedM int) []byte {
+	copies := mainchainMVBAInputCopies(simulatedM)
+	expanded := make([]byte, 0, len(value)*copies)
+	for i := 0; i < copies; i++ {
+		expanded = append(expanded, value...)
+	}
+	return expanded
+}
+
+func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int, mainchainMVBASimM int) {
 	Debugf(p, "main shard start: stream RBC_Bitmap and start MVBA on (workShard,epoch) threshold")
 
 	expected := int((p.M - 1) * maxEpoch)
@@ -104,10 +120,11 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 		p.RecordMainBitmapThresholdReady(key.shard, key.epoch)
 		started[key] = struct{}{}
 		orCopy := append([]byte(nil), agg.orBitmap...)
+		mvbaInput := expandMainchainMVBAInput(orCopy, mainchainMVBASimM)
 		delete(aggs, key)
 
-		Debugf(p, "epoch %d shard %d bitmap OR ready (seen=%d, ones=%d, ids=%v) -> start MVBA (%d/%d)",
-			key.epoch, key.shard, thresholdNodes, bitmapCountOnes(orCopy, p.WorkN), bitmapOnes(orCopy, p.WorkN), len(started), expected)
+		Debugf(p, "epoch %d shard %d bitmap OR ready (seen=%d, ones=%d, ids=%v) -> start MVBA (%d/%d, rawBytes=%d effectiveBytes=%d simM=%d)",
+			key.epoch, key.shard, thresholdNodes, bitmapCountOnes(orCopy, p.WorkN), bitmapOnes(orCopy, p.WorkN), len(started), expected, len(orCopy), len(mvbaInput), mainchainMVBASimM)
 
 		mvbaWg.Add(1)
 		go func(workShard, epoch uint32, value []byte) {
@@ -120,7 +137,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 			_ = p.Shard_Broadcast(msg, workShard)
 			p.RecordMainResultBroadcastDone(workShard, epoch)
 			Debugf(p, "epoch %d shard %d MVBA done", epoch, workShard)
-		}(key.shard, key.epoch, orCopy)
+		}(key.shard, key.epoch, mvbaInput)
 	}
 
 waitMVBA:

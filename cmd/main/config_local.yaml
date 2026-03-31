@@ -3,6 +3,7 @@ N_W: 4
 F_M: 2
 F_W: 1
 m: 2
+MainchainMVBASimM: 10000  # 仅用于模拟 mainchain 的 MVBA 输入负担；实际拓扑仍由 m 控制
 IPList:
 - 127.0.0.1
 - 127.0.0.1

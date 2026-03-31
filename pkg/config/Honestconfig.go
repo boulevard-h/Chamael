@@ -26,6 +26,8 @@ type HonestConfig struct {
 	FMain int `yaml:"F_M,omitempty"` //主链恶意节点数
 	FWork int `yaml:"F_W,omitempty"` //工作分片恶意节点数
 	M     int `yaml:"m"`             //分片个数（含主链）
+	// MainchainMVBASimM only affects mainchain MVBA input expansion, not topology.
+	MainchainMVBASimM int `yaml:"MainchainMVBASimM,omitempty"`
 
 	IPList   []string `yaml:"IPList"`
 	PortList []string `yaml:"PortList"`
@@ -87,6 +89,10 @@ func (c *HonestConfig) ReadHonestConfig(ConfigName string, isLocal bool) error {
 
 	c.isRead = true
 	if err := validateShardConfig(c.NMain, c.NWork, c.FMain, c.FWork, c.M); err != nil {
+		return errors.Wrap(err, ConfigReadError.Error())
+	}
+	normalizeMainchainMVBASimM(&c.MainchainMVBASimM, c.M)
+	if err := validateMainchainMVBASimM(c.MainchainMVBASimM); err != nil {
 		return errors.Wrap(err, ConfigReadError.Error())
 	}
 
