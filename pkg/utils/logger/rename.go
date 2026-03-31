@@ -33,7 +33,7 @@ func RenameCommon(c config.CommonConfig, p party.CommonParty, path string) {
 		ip := ipAndPort[0]
 		port := ipAndPort[1]
 		var nodeNumber int
-		for i := 0; i < c.N*c.M; i++ {
+		for i := 0; i < c.TotalNodes(); i++ {
 			if ip == c.IPList[i] && port == c.PortList[i] {
 				nodeNumber = i
 				break
@@ -66,7 +66,7 @@ func RenameHonest(c config.HonestConfig, p *party.HonestParty, path string) {
 		ip := ipAndPort[0]
 		port := ipAndPort[1]
 		var nodeNumber int
-		for i := 0; i < c.N*c.M; i++ {
+		for i := 0; i < c.TotalNodes(); i++ {
 			if ip == c.IPList[i] && port == c.PortList[i] {
 				nodeNumber = i
 				break

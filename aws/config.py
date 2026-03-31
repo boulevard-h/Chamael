@@ -5,8 +5,10 @@ import boto3
 import yaml
 
 
-NODES_PER_SHARD = 4
-BYZANTINE_NODES_PER_SHARD = 1
+N_M = 4
+N_W = 4
+F_M = 1
+F_W = 1
 SHARD_COUNT = 25
 WORK_SHARD_NODES_PER_SERVER = 4
 START_PORT = 9233
@@ -47,6 +49,34 @@ class AllocationPlan:
 def chunked(items, size):
     for index in range(0, len(items), size):
         yield items[index : index + size]
+
+
+def total_nodes(mainchain_nodes, work_shard_nodes, shard_count):
+    if shard_count <= 0:
+        return 0
+    return mainchain_nodes + max(0, shard_count - 1) * work_shard_nodes
+
+
+def shard_size(shard_id, mainchain_nodes, work_shard_nodes):
+    return mainchain_nodes if shard_id == 0 else work_shard_nodes
+
+
+def shard_start_pid(shard_id, mainchain_nodes, work_shard_nodes):
+    if shard_id == 0:
+        return 0
+    return mainchain_nodes + (shard_id - 1) * work_shard_nodes
+
+
+def pid_to_shard_and_sid(pid, mainchain_nodes, work_shard_nodes, shard_count):
+    total = total_nodes(mainchain_nodes, work_shard_nodes, shard_count)
+    if pid < 0 or pid >= total:
+        raise ValueError(f"pid {pid} is outside [0, {total})")
+    if pid < mainchain_nodes:
+        return 0, pid
+    offset = pid - mainchain_nodes
+    shard_id = 1 + offset // work_shard_nodes
+    sid = offset % work_shard_nodes
+    return shard_id, sid
 
 
 def fetch_instance_type_cpu_info(ec2_client, instance_types):
@@ -101,20 +131,35 @@ def collect_instances(region_names):
     return instances
 
 
-def build_allocation_plan(instances, nodes_per_shard, shard_count, work_shard_nodes_per_server, region_names):
-    if nodes_per_shard <= 0 or shard_count <= 0:
-        raise ValueError("nodes_per_shard and shard_count must both be positive")
+def build_allocation_plan(
+    instances,
+    mainchain_nodes,
+    work_shard_nodes,
+    mainchain_byzantine_nodes,
+    work_shard_byzantine_nodes,
+    shard_count,
+    work_shard_nodes_per_server,
+    region_names,
+):
+    if mainchain_nodes <= 0 or work_shard_nodes <= 0 or shard_count <= 0:
+        raise ValueError("mainchain_nodes, work_shard_nodes, and shard_count must all be positive")
+    if mainchain_byzantine_nodes < 0 or work_shard_byzantine_nodes < 0:
+        raise ValueError("byzantine node counts must be non-negative")
+    if 3 * mainchain_byzantine_nodes + 1 > mainchain_nodes:
+        raise ValueError("mainchain_nodes must satisfy N_M >= 3*F_M+1")
+    if shard_count > 1 and 3 * work_shard_byzantine_nodes + 1 > work_shard_nodes:
+        raise ValueError("work_shard_nodes must satisfy N_W >= 3*F_W+1")
     if work_shard_nodes_per_server <= 0:
         raise ValueError("work_shard_nodes_per_server must be positive")
-    if shard_count > 1 and nodes_per_shard % work_shard_nodes_per_server != 0:
+    if shard_count > 1 and work_shard_nodes % work_shard_nodes_per_server != 0:
         raise ValueError(
-            "nodes_per_shard must be divisible by work_shard_nodes_per_server "
+            "work_shard_nodes must be divisible by work_shard_nodes_per_server "
             "to keep work shards at a fixed number of nodes per machine"
         )
 
     region_order = {region_name: index for index, region_name in enumerate(region_names)}
-    required_shard0_servers = nodes_per_shard
-    required_work_servers = ((shard_count - 1) * nodes_per_shard) // work_shard_nodes_per_server
+    required_shard0_servers = mainchain_nodes
+    required_work_servers = ((shard_count - 1) * work_shard_nodes) // work_shard_nodes_per_server
     required_total_servers = required_shard0_servers + required_work_servers
 
     if len(instances) < required_total_servers:
@@ -162,10 +207,10 @@ def build_allocation_plan(instances, nodes_per_shard, shard_count, work_shard_no
             )
         )
 
-    next_pid = nodes_per_shard
+    next_pid = mainchain_nodes
     work_server_index = 0
     for shard_id in range(1, shard_count):
-        remaining_nodes_in_shard = nodes_per_shard
+        remaining_nodes_in_shard = work_shard_nodes
         while remaining_nodes_in_shard > 0:
             node_count = min(work_shard_nodes_per_server, remaining_nodes_in_shard)
             assignments.append(
@@ -188,22 +233,33 @@ def build_allocation_plan(instances, nodes_per_shard, shard_count, work_shard_no
     )
 
 
-def generate_yaml_config(assignments, nodes_per_shard, byzantine_nodes_per_shard, shard_count, start_port):
+def generate_yaml_config(
+    assignments,
+    mainchain_nodes,
+    work_shard_nodes,
+    mainchain_byzantine_nodes,
+    work_shard_byzantine_nodes,
+    shard_count,
+    start_port,
+):
     ip_list = []
     port_list = []
     for assignment in assignments:
         for pid in range(assignment.start_pid, assignment.end_pid + 1):
+            _, sid = pid_to_shard_and_sid(pid, mainchain_nodes, work_shard_nodes, shard_count)
             ip_list.append(assignment.instance.public_ip)
-            port_list.append(str(start_port + (pid % nodes_per_shard)))
+            port_list.append(str(start_port + sid))
 
     config = {
-        "N": nodes_per_shard,
-        "F": byzantine_nodes_per_shard,
+        "N_M": mainchain_nodes,
+        "N_W": work_shard_nodes,
+        "F_M": mainchain_byzantine_nodes,
+        "F_W": work_shard_byzantine_nodes,
         "m": shard_count,
         "IPList": ip_list,
         "PID": 0,
-        "SID": 1,
-        "Snum": 2,
+        "SID": 0,
+        "Snum": 0,
         "PortList": port_list,
         "Prepare": 10,
         "Statistic": "./statistics",
@@ -273,12 +329,25 @@ def format_shard_region_summary(assignments, shard_id, region_names):
     return ", ".join(ordered_regions)
 
 
-def print_allocation_summary(instances, plan, nodes_per_shard, shard_count, region_names):
+def print_allocation_summary(
+    instances,
+    plan,
+    mainchain_nodes,
+    work_shard_nodes,
+    mainchain_byzantine_nodes,
+    work_shard_byzantine_nodes,
+    shard_count,
+    region_names,
+):
     print("Allocation summary:")
     print(f"- discovered AWS servers: {len(instances)}")
     print(
         f"- required AWS servers: {len(plan.assignments)} "
         f"(shard0={len(plan.shard0_servers)}, work_shards={len(plan.work_servers)})"
+    )
+    print(
+        f"- shard sizes/faults: shard0={mainchain_nodes}/{mainchain_byzantine_nodes}, "
+        f"worker={work_shard_nodes}/{work_shard_byzantine_nodes}"
     )
     print("- shard0 selection order: cpu_cores desc, then vcpus desc")
     print(f"- unused AWS servers: {len(plan.unused_servers)}")
@@ -289,11 +358,15 @@ def print_allocation_summary(instances, plan, nodes_per_shard, shard_count, regi
 
     print("\nServer assignments:")
     for index, assignment in enumerate(plan.assignments):
-        role = f"shard{assignment.shard_id}"
-        shard_sid_start = assignment.start_pid % nodes_per_shard
-        shard_sid_end = assignment.end_pid % nodes_per_shard
+        role = "mainchain" if assignment.shard_id == 0 else f"shard{assignment.shard_id}"
+        _, shard_sid_start = pid_to_shard_and_sid(
+            assignment.start_pid, mainchain_nodes, work_shard_nodes, shard_count
+        )
+        _, shard_sid_end = pid_to_shard_and_sid(
+            assignment.end_pid, mainchain_nodes, work_shard_nodes, shard_count
+        )
         print(
-            f"[{index:03d}] {role:<7} "
+            f"[{index:03d}] {role:<9} "
             f"pid={format_pid_range(assignment.start_pid, assignment.end_pid):<9} "
             f"sid={format_pid_range(shard_sid_start, shard_sid_end):<7} "
             f"nodes={assignment.node_count:<2} "
@@ -320,7 +393,10 @@ def main():
     instances = collect_instances(REGION_NAMES)
     plan = build_allocation_plan(
         instances=instances,
-        nodes_per_shard=NODES_PER_SHARD,
+        mainchain_nodes=N_M,
+        work_shard_nodes=N_W,
+        mainchain_byzantine_nodes=F_M,
+        work_shard_byzantine_nodes=F_W,
         shard_count=SHARD_COUNT,
         work_shard_nodes_per_server=WORK_SHARD_NODES_PER_SERVER,
         region_names=REGION_NAMES,
@@ -328,14 +404,16 @@ def main():
 
     yaml_config = generate_yaml_config(
         assignments=plan.assignments,
-        nodes_per_shard=NODES_PER_SHARD,
-        byzantine_nodes_per_shard=BYZANTINE_NODES_PER_SHARD,
+        mainchain_nodes=N_M,
+        work_shard_nodes=N_W,
+        mainchain_byzantine_nodes=F_M,
+        work_shard_byzantine_nodes=F_W,
         shard_count=SHARD_COUNT,
         start_port=START_PORT,
     )
     bash_script = generate_bash_script(plan.assignments)
 
-    print_allocation_summary(instances, plan, NODES_PER_SHARD, SHARD_COUNT, REGION_NAMES)
+    print_allocation_summary(instances, plan, N_M, N_W, F_M, F_W, SHARD_COUNT, REGION_NAMES)
     print("\n\nYAML config:")
     print(yaml_config)
     print("\n\nBash header:")

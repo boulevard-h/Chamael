@@ -54,10 +54,13 @@ func messageHandler(
 					log.Printf("node %d MVBA ignored %s with unexpected payload type %T from %d", p.PID, messageTypeFinish, decoded, m.Sender)
 					continue
 				}
-				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+				if !p.IsPIDInShard(m.Sender, p.Snumber) {
 					continue
 				}
-				senderSID := m.Sender % p.N
+				_, senderSID, ok := p.PIDToShardAndSID(m.Sender)
+				if !ok {
+					continue
+				}
 				h := sha3.Sum512(payload.Value)
 				var buf bytes.Buffer
 				buf.Write([]byte("Echo"))
@@ -93,10 +96,13 @@ func messageHandler(
 			case <-ctx.Done():
 				return
 			case m := <-p.GetMessage(messageTypeDone, IDr):
-				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+				if !p.IsPIDInShard(m.Sender, p.Snumber) {
 					continue
 				}
-				senderSID := m.Sender % p.N
+				_, senderSID, ok := p.PIDToShardAndSID(m.Sender)
+				if !ok {
+					continue
+				}
 				if _, ok := seenDone[senderSID]; ok {
 					continue
 				}
@@ -155,7 +161,7 @@ func messageHandler(
 			case <-ctx.Done():
 				return
 			case m := <-p.GetMessage(messageTypeHalt, IDr):
-				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+				if !p.IsPIDInShard(m.Sender, p.Snumber) {
 					continue
 				}
 				decoded, err := core.Decapsulation(messageTypeHalt, m)
@@ -191,7 +197,7 @@ func messageHandler(
 			case <-ctx.Done():
 				return
 			case m := <-p.GetMessage(messageTypePreVote, IDr):
-				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+				if !p.IsPIDInShard(m.Sender, p.Snumber) {
 					continue
 				}
 				decoded, err := core.Decapsulation(messageTypePreVote, m)
@@ -267,7 +273,7 @@ func messageHandler(
 			case <-ctx.Done():
 				return
 			case m := <-p.GetMessage(messageTypeVote, IDr):
-				if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+				if !p.IsPIDInShard(m.Sender, p.Snumber) {
 					continue
 				}
 				decoded, err := core.Decapsulation(messageTypeVote, m)

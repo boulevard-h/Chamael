@@ -38,18 +38,20 @@ chmod 777 env-batch.sh
 
 | 常量名称                        | 参数含义 |
 | -------------------------------- | -------- |
-| NODES_PER_SHARD                  | 每个分片中的节点数量 |
-| BYZANTINE_NODES_PER_SHARD        | 每个分片中的恶意节点数量 |
+| N_M                              | 主链（`shard0`）中的节点数量 |
+| N_W                              | 每个 work shard 中的节点数量 |
+| F_M                              | 主链（`shard0`）中的恶意节点数量 |
+| F_W                              | 每个 work shard 中的恶意节点数量 |
 | SHARD_COUNT                      | 分片个数 |
 | WORK_SHARD_NODES_PER_SERVER      | work shard 每台服务器部署的节点数 |
 | START_PORT                       | 起始端口 |
 | REGION_NAMES                     | 拉取 AWS 实例时扫描的 region 列表 |
 
 * 本地运行`config.py`，脚本会：
-  * 按 CPU 核数从高到低挑出 `NODES_PER_SHARD` 台服务器分给 `shard0`，且 `shard0` 的每个节点独占一台机器；
+  * 按 CPU 核数从高到低挑出 `N_M` 台服务器分给 `shard0`，且 `shard0` 的每个节点独占一台机器；
   * 将剩余服务器按 `region` 排序，再顺序分给各个 work shard，以尽可能让一个 shard 落在同一 region；
   * 打印机器分配摘要，供部署前人工确认；
-  * 输出 YAML 配置和 Bash 头部变量块（包含 `N`、`nodeCountsVar`、`pubIPsVar`）。
+  * 输出 YAML 配置和 Bash 头部变量块（包含 `N_M`、`N_W`、`F_M`、`F_W`、`nodeCountsVar`、`pubIPsVar`）。
 
 * 将生成的 YAML 配置替换到 `config_local.yaml`；将 Bash 头部变量块替换到 `aws-pre.sh`、`aws-run.sh`、`aws-pull.sh`、`aws-log.sh` 和 `aws-kill.sh` 顶部对应位置。
 

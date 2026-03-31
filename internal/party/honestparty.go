@@ -3,6 +3,7 @@ package party
 import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
+	"Chamael/pkg/topology"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -18,8 +19,12 @@ import (
 )
 
 type HonestParty struct {
-	N                 uint32
-	F                 uint32
+	MainN             uint32
+	WorkN             uint32
+	MainF             uint32
+	WorkF             uint32
+	N                 uint32 // 当前节点所在分片的节点数
+	F                 uint32 // 当前节点所在分片的恶意节点数
 	M                 uint32 //分片个数
 	PID               uint32
 	Snumber           uint32 //节点所在的分片编号
@@ -44,7 +49,7 @@ type HonestParty struct {
 	timings               timingTracker
 }
 
-func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, trackTraffic bool) *HonestParty {
+func NewHonestParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, trackTraffic bool) *HonestParty {
 
 	//suite := bn256.NewSuite()
 	suite := pairing.NewSuiteBn256()
@@ -54,22 +59,31 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 	scalar.UnmarshalBinary(skstr)
 
 	var points []kyber.Point
-	for i := 0; i < int(N*m); i++ {
+	totalNodes := int(mainN)
+	if m > 1 {
+		totalNodes += int((m - 1) * workN)
+	}
+	for i := 0; i < totalNodes; i++ {
 		pkstr, _ := base64.StdEncoding.DecodeString(pk[i])
 		points = append(points, suite.Point())
 		points[i].UnmarshalBinary(pkstr)
 	}
 
+	localN, localF := localShardParams(mainN, workN, mainF, workF, snum)
 	p := HonestParty{
-		N:            N,
-		F:            F,
+		MainN:        mainN,
+		WorkN:        workN,
+		MainF:        mainF,
+		WorkF:        workF,
+		N:            localN,
+		F:            localF,
 		M:            m, //分片个数
 		PID:          pid,
 		Snumber:      snum, //节点所在的分片编号
 		SID:          sid,  //节点在分片内的编号
 		ipList:       ipList,
 		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N*m), //N改成N*m ！
+		sendChannels: make([]chan *protobuf.Message, totalNodes),
 		PK:           points,
 		SK:           scalar,
 		Debug:        Debug,
@@ -81,17 +95,22 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // NewHonestPartyWithThreshold creates a party instance that is equipped with a local TBLS share.
 // It does not require regular BLS PK/SK material (PK/SK remain nil).
-func NewHonestPartyWithThreshold(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, thresholdPK *share.PubPoly, thresholdSK *share.PriShare, Debug bool, trackTraffic bool) *HonestParty {
+func NewHonestPartyWithThreshold(mainN uint32, workN uint32, mainF uint32, workF uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, thresholdPK *share.PubPoly, thresholdSK *share.PriShare, Debug bool, trackTraffic bool) *HonestParty {
+	localN, localF := localShardParams(mainN, workN, mainF, workF, snum)
 	p := HonestParty{
-		N:            N,
-		F:            F,
+		MainN:        mainN,
+		WorkN:        workN,
+		MainF:        mainF,
+		WorkF:        workF,
+		N:            localN,
+		F:            localF,
 		M:            m,
 		PID:          pid,
 		Snumber:      snum,
 		SID:          sid,
 		ipList:       ipList,
 		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N*m),
+		sendChannels: make([]chan *protobuf.Message, topology.TotalNodes(int(mainN), int(workN), int(m))),
 		ThresholdPK:  thresholdPK,
 		ThresholdSK:  thresholdSK,
 		Debug:        Debug,
@@ -102,7 +121,7 @@ func NewHonestPartyWithThreshold(N uint32, F uint32, m uint32, pid uint32, snum 
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.N)), p.N*p.M)
+	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
 	return nil
 }
 
@@ -117,7 +136,7 @@ func (p *HonestParty) InitSendChannel() error {
 		dirname = fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
 		os.Mkdir(dirname, 0755)
 	}
-	for i := uint32(0); i < p.N*p.M; i++ {
+	for i := uint32(0); i < p.TotalNodes(); i++ {
 		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i], dirname, p.Debug)
 	}
 	return nil
@@ -131,7 +150,7 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	if m == nil {
 		return errors.New("message is nil")
 	}
-	if des >= p.N*p.M {
+	if des >= p.TotalNodes() {
 		return errors.New("Destination id is too large")
 	}
 
@@ -142,7 +161,10 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	case p.sendChannels[des] <- m:
 		if p.TrackTraffic {
 			messageSize := uint64(len(m.Type) + len(m.Id) + 4 + len(m.Data))
-			desShard := des / p.N
+			desShard, _, ok := p.PIDToShardAndSID(des)
+			if !ok {
+				return fmt.Errorf("destination id %d is outside configured topology", des)
+			}
 			if desShard == p.Snumber {
 				atomic.AddUint64(&p.intraShardTrafficByte, messageSize)
 			} else {
@@ -160,7 +182,7 @@ func (p *HonestParty) Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, 0, p.N*p.M, "broadcast")
+	return p.broadcastRange(m, 0, p.TotalNodes(), "broadcast")
 }
 
 // Broadcast a message to parties in the same shard
@@ -168,7 +190,11 @@ func (p *HonestParty) Intra_Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, p.Snumber*p.N, (p.Snumber+1)*p.N, "intra broadcast")
+	start, end, ok := p.ShardBounds(p.Snumber)
+	if !ok {
+		return errors.New("invalid shard range")
+	}
+	return p.broadcastRange(m, start, end, "intra broadcast")
 }
 
 // Broadcast a message to parties in a specified shard
@@ -176,7 +202,11 @@ func (p *HonestParty) Shard_Broadcast(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, des*p.N, (des+1)*p.N, "shard broadcast")
+	start, end, ok := p.ShardBounds(des)
+	if !ok {
+		return errors.New("invalid shard range")
+	}
+	return p.broadcastRange(m, start, end, "shard broadcast")
 }
 
 func (p *HonestParty) broadcastRange(m *protobuf.Message, start uint32, end uint32, scope string) error {

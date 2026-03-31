@@ -25,7 +25,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 	Debugf(p, "main shard start: stream RBC_Bitmap and start MVBA on (workShard,epoch) threshold")
 
 	expected := int((p.M - 1) * maxEpoch)
-	thresholdNodes := 2*int(p.F) + 1
+	thresholdNodes := 2*int(p.WorkF) + 1
 	totalTimeout := kronosTotalTimeout(maxEpoch, waitEpoch)
 	deadlineAt := time.Now().Add(totalTimeout)
 
@@ -63,8 +63,8 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 			continue
 		}
 
-		senderShard := m.Sender / p.N
-		if senderShard != payload.Shard {
+		senderShard, _, ok := p.PIDToShardAndSID(m.Sender)
+		if !ok || senderShard != payload.Shard {
 			continue
 		}
 
@@ -73,15 +73,15 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 			continue
 		}
 
-		if len(payload.Bitmap) != bitmapLenBits(p.N) {
-			log.Printf("ignore RBC_Bitmap: wrong length (got=%d want=%d) sender=%d shard=%d epoch=%d", len(payload.Bitmap), bitmapLenBits(p.N), m.Sender, payload.Shard, payload.Epoch)
+		if len(payload.Bitmap) != bitmapLenBits(p.WorkN) {
+			log.Printf("ignore RBC_Bitmap: wrong length (got=%d want=%d) sender=%d shard=%d epoch=%d", len(payload.Bitmap), bitmapLenBits(p.WorkN), m.Sender, payload.Shard, payload.Epoch)
 			continue
 		}
 
 		agg, ok := aggs[key]
 		if !ok {
 			agg = &bitmapAggregator{
-				orBitmap: make([]byte, bitmapLenBits(p.N)),
+				orBitmap: make([]byte, bitmapLenBits(p.WorkN)),
 				seen:     make(map[uint32]struct{}, thresholdNodes),
 			}
 			aggs[key] = agg
@@ -107,7 +107,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 		delete(aggs, key)
 
 		Debugf(p, "epoch %d shard %d bitmap OR ready (seen=%d, ones=%d, ids=%v) -> start MVBA (%d/%d)",
-			key.epoch, key.shard, thresholdNodes, bitmapCountOnes(orCopy, p.N), bitmapOnes(orCopy, p.N), len(started), expected)
+			key.epoch, key.shard, thresholdNodes, bitmapCountOnes(orCopy, p.WorkN), bitmapOnes(orCopy, p.WorkN), len(started), expected)
 
 		mvbaWg.Add(1)
 		go func(workShard, epoch uint32, value []byte) {

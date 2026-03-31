@@ -68,6 +68,8 @@ func makeTestShardParties(t *testing.T, n, f uint32, basePort int) []*party.Hone
 	for i := uint32(0); i < n; i++ {
 		parties[i] = party.NewHonestPartyWithThreshold(
 			n,
+			n,
+			f,
 			f,
 			1,
 			i, // pid

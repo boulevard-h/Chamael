@@ -15,9 +15,14 @@ var NotDefined = errors.New("this item in config is allowed to omit")
 
 // Implement Config interface in local linux machine setting
 type CommonConfig struct {
-	N int `yaml:"N"` //每个分片中的节点数
-	F int `yaml:"F"` //每个分片中的恶意节点数
-	M int `yaml:"m"` //分片个数
+	N int `yaml:"N,omitempty"` // legacy: equal-size shard node count
+	F int `yaml:"F,omitempty"` // legacy: equal-size shard fault bound
+
+	NMain int `yaml:"N_M"`           //主链节点数
+	NWork int `yaml:"N_W"`           //工作分片节点数
+	FMain int `yaml:"F_M,omitempty"` //主链恶意节点数
+	FWork int `yaml:"F_W,omitempty"` //工作分片恶意节点数
+	M     int `yaml:"m"`             //分片个数（含主链）
 
 	IPList   []string `yaml:"IPList"`
 	PortList []string `yaml:"PortList"`
@@ -61,28 +66,32 @@ func (c *CommonConfig) ReadCommonConfig(ConfigName string, isLocal bool) error {
 	}
 
 	err = yaml.Unmarshal(byt, c)
+	if err != nil {
+		goto ret
+	}
+	normalizeShardConfig(c.N, c.F, &c.NMain, &c.NWork, &c.FMain, &c.FWork)
 	normalizeTiming(&c.Prepare, &c.WaitEpoch, &c.WaitBuf, c.PrepareTime, c.WaitTime)
 
 	c.isRead = true
+	if err := validateShardConfig(c.NMain, c.NWork, c.FMain, c.FWork, c.M); err != nil {
+		return errors.Wrap(err, ConfigReadError.Error())
+	}
 
 	if !isLocal {
-		if err != nil {
-			goto ret
-		}
-
-		if c.N <= 0 || c.F < 0 {
-			return errors.Wrap(errors.New("N or F is negative"),
-				ConfigReadError.Error())
-		}
-
-		if c.N != len(c.IPList) || c.N != len(c.PortList) {
+		total := c.TotalNodes()
+		if total != len(c.IPList) || total != len(c.PortList) {
 			return errors.Wrap(errors.New("ip list"+
-				" length or port list length isn't match N"),
+				" length or port list length isn't match total nodes"),
 				ConfigReadError.Error())
 		}
-		// id is begin from 0 to ... N-1
-		if c.PID >= c.N || c.PID < 0 {
-			return errors.New("ID is begin from 0 to N-1")
+		if c.PID >= total || c.PID < 0 {
+			return fmt.Errorf("PID must be in [0, %d)", total)
+		}
+		if c.Snumber < 0 || c.Snumber >= c.M {
+			return fmt.Errorf("Snum must be in [0, %d)", c.M)
+		}
+		if c.SID < 0 || c.SID >= c.ShardSize(c.Snumber) {
+			return fmt.Errorf("SID must be in [0, %d) for shard %d", c.ShardSize(c.Snumber), c.Snumber)
 		}
 	}
 
@@ -97,7 +106,7 @@ func (c *CommonConfig) GetN() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
 	}
-	return c.N, nil
+	return c.ShardSize(c.Snumber), nil
 }
 
 // Achieve number of corrupted nodes
@@ -106,7 +115,7 @@ func (c *CommonConfig) GetF() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
 	}
-	return c.F, nil
+	return c.ShardFaults(c.Snumber), nil
 }
 
 // Achieve ip list if defined
@@ -153,11 +162,15 @@ func (c *CommonConfig) Marshal(location string) error {
 }
 
 func (c *CommonConfig) RemoteCommonGen(dir string) error {
-
-	for i := 0; i < c.N*c.M; i++ {
+	total := c.TotalNodes()
+	for i := 0; i < total; i++ {
+		shard, sid, ok := c.PIDToShardAndSID(i)
+		if !ok {
+			return errors.New("failed to derive shard topology from PID")
+		}
 		c.PID = i
-		c.SID = i % c.N
-		c.Snumber = i / c.N
+		c.SID = sid
+		c.Snumber = shard
 		err := c.Marshal(dir + "/config_" + strconv.Itoa(i) + ".yaml")
 		if err != nil {
 			fmt.Println(dir)
@@ -166,4 +179,27 @@ func (c *CommonConfig) RemoteCommonGen(dir string) error {
 		}
 	}
 	return nil
+}
+
+func (c *CommonConfig) TotalNodes() int {
+	return totalNodes(c.NMain, c.NWork, c.M)
+}
+
+func (c *CommonConfig) ShardSize(shard int) int {
+	return shardSize(c.NMain, c.NWork, c.M, shard)
+}
+
+func (c *CommonConfig) ShardStart(shard int) int {
+	return shardStart(c.NMain, c.NWork, c.M, shard)
+}
+
+func (c *CommonConfig) ShardFaults(shard int) int {
+	if shard == 0 {
+		return c.FMain
+	}
+	return c.FWork
+}
+
+func (c *CommonConfig) PIDToShardAndSID(pid int) (int, int, bool) {
+	return pidToShardAndSID(c.NMain, c.NWork, c.M, pid)
 }

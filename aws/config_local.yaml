@@ -1,5 +1,7 @@
-N: 4
-F: 1
+N_M: 4
+N_W: 4
+F_M: 1
+F_W: 1
 m: 3
 IPList:
 - xxx
@@ -15,8 +17,8 @@ IPList:
 - xxx
 - xxx
 PID: 0
-SID: 1
-Snum: 2
+SID: 0
+Snum: 0
 PortList:
 - xxx
 - xxx

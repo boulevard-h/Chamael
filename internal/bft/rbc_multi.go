@@ -30,8 +30,11 @@ func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, 
 	}()
 
 	deliverCh := make(chan rbcInstanceDeliver, int(p.N))
-	shardStart := p.Snumber * p.N
-	for proposerPID := shardStart; proposerPID < shardStart+p.N; proposerPID++ {
+	shardStart, shardEnd, ok := p.ShardBounds(p.Snumber)
+	if !ok {
+		return nil
+	}
+	for proposerPID := shardStart; proposerPID < shardEnd; proposerPID++ {
 		var proposeTxs []string
 		if proposerPID == p.PID {
 			proposeTxs = selfTxs
@@ -93,8 +96,11 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 	}()
 
 	deliverCh := make(chan rbcInstanceDeliver, int(p.N))
-	shardStart := p.Snumber * p.N
-	for proposerPID := shardStart; proposerPID < shardStart+p.N; proposerPID++ {
+	shardStart, shardEnd, ok := p.ShardBounds(p.Snumber)
+	if !ok {
+		return nil
+	}
+	for proposerPID := shardStart; proposerPID < shardEnd; proposerPID++ {
 		var proposeTxs []string
 		if proposerPID == p.PID {
 			proposeTxs = selfTxs
@@ -126,10 +132,13 @@ func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32,
 		items := make([]sidHash, 0, threshold)
 
 		for _, proposerPID := range deliveredOrder[:threshold] {
-			if proposerPID < shardStart || proposerPID >= shardStart+p.N {
+			if proposerPID < shardStart || proposerPID >= shardEnd {
 				continue
 			}
-			sid := proposerPID - shardStart
+			_, sid, ok := p.PIDToShardAndSID(proposerPID)
+			if !ok {
+				continue
+			}
 			h := deliveredHash[proposerPID]
 			items = append(items, sidHash{sid: sid, hash: append([]byte(nil), h...)})
 		}

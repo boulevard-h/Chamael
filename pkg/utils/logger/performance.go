@@ -274,7 +274,7 @@ roundDelayDone:
 
 	// 修改日志消息，添加延迟信息
 	logMessage := fmt.Sprintf(
-		"Shard Number: %d\nWorker Shard: %t\nTotal Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
+		"Shard Number: %d\nWorker Shard: %t\nMain Chain Size: %d\nWork Shard Size: %d\nMain Chain Faults: %d\nWork Shard Faults: %d\nTotal Nodes: %d\nTotal Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
 			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
 			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n"+
 			"Intra-Shard Traffic: %.2f MB\nCross-Shard Traffic: %.6f MB\n"+
@@ -288,7 +288,7 @@ roundDelayDone:
 			"Dispatcher Dropped: %d\nSend Reconnects: %d\nReceive Accept Retries: %d\nReceive Breakdowns: %d\n"+
 			"RBC Timeout Count: %d\nMVBA Timeout Count: %d\n"+
 			"Timing Note: worker round-trip and shard0 MVBA are recorded on different nodes, compare trends rather than subtracting them directly.\n",
-		p.Snumber, isWorkerShard,
+		p.Snumber, isWorkerShard, p.MainN, p.WorkN, p.MainF, p.WorkF, p.TotalNodes(),
 		totalTransactions, internalTransactions, crossShardTransactions,
 		totalTPS, internalTPS, crossShardTPS,
 		avgBlockDelay, avgRoundDelay, latency,

@@ -3,6 +3,7 @@ package party
 import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
+	"Chamael/pkg/topology"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,10 @@ import (
 
 // CommonParty is a struct of normal consensus parties
 type CommonParty struct {
+	MainN             uint32
+	WorkN             uint32
+	MainF             uint32
+	WorkF             uint32
 	N                 uint32
 	F                 uint32
 	m                 uint32 //分片个数
@@ -27,17 +32,22 @@ type CommonParty struct {
 }
 
 // NewCommonParty return a new common party object
-func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, ShardList []int) *CommonParty {
+func NewCommonParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, ShardList []int) *CommonParty {
+	localN, localF := localShardParams(mainN, workN, mainF, workF, snum)
 	p := CommonParty{
-		N:            N,
-		F:            F,
+		MainN:        mainN,
+		WorkN:        workN,
+		MainF:        mainF,
+		WorkF:        workF,
+		N:            localN,
+		F:            localF,
 		m:            m, //分片个数
 		PID:          pid,
 		Snumber:      snum, //节点所在的分片编号
 		SID:          sid,  //节点在分片内的编号
 		ipList:       ipList,
 		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N*m), //N改成N*m ！
+		sendChannels: make([]chan *protobuf.Message, topology.TotalNodes(int(mainN), int(workN), int(m))),
 		ShardList:    ShardList,
 	}
 
@@ -46,7 +56,7 @@ func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *CommonParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.N)), p.N)
+	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
 	return nil
 }
 
@@ -59,7 +69,7 @@ func (p *CommonParty) InitSendChannel() error {
 
 	dirname := fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
 	os.Mkdir(dirname, 0755)
-	for i := uint32(0); i < p.N*p.m; i++ {
+	for i := uint32(0); i < p.TotalNodes(); i++ {
 		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i], dirname, p.Debug)
 	}
 	return nil
@@ -73,7 +83,7 @@ func (p *CommonParty) Send(m *protobuf.Message, des uint32) error {
 	if m == nil {
 		return errors.New("message is nil")
 	}
-	if des >= p.N*p.m {
+	if des >= p.TotalNodes() {
 		return errors.New("Destination id is too large")
 	}
 
@@ -93,7 +103,7 @@ func (p *CommonParty) Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, 0, p.N*p.m, "broadcast")
+	return p.broadcastRange(m, 0, p.TotalNodes(), "broadcast")
 }
 
 // Broadcast a message to parties in the same shard
@@ -101,7 +111,11 @@ func (p *CommonParty) Intra_Broadcast(m *protobuf.Message) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, p.Snumber*p.N, (p.Snumber+1)*p.N, "intra broadcast")
+	start, end, ok := p.ShardBounds(p.Snumber)
+	if !ok {
+		return errors.New("invalid shard range")
+	}
+	return p.broadcastRange(m, start, end, "intra broadcast")
 }
 
 // Broadcast a message to parties in a specified shard
@@ -109,7 +123,11 @@ func (p *CommonParty) Shard_Broadcast(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	return p.broadcastRange(m, des*p.N, (des+1)*p.N, "shard broadcast")
+	start, end, ok := p.ShardBounds(des)
+	if !ok {
+		return errors.New("invalid shard range")
+	}
+	return p.broadcastRange(m, start, end, "shard broadcast")
 }
 
 func (p *CommonParty) broadcastRange(m *protobuf.Message, start uint32, end uint32, scope string) error {

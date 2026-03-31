@@ -1,6 +1,7 @@
 package config
 
 import (
+	"Chamael/pkg/topology"
 	"encoding/base64"
 	"fmt"
 	"go.dedis.ch/kyber/v3/pairing"
@@ -17,9 +18,14 @@ import (
 
 // Implement Config interface in local linux machine setting
 type HonestConfig struct {
-	N int `yaml:"N"` //每个分片中的节点数
-	F int `yaml:"F"` //每个分片中的恶意节点数
-	M int `yaml:"m"` //分片个数
+	N int `yaml:"N,omitempty"` // legacy: equal-size shard node count
+	F int `yaml:"F,omitempty"` // legacy: equal-size shard fault bound
+
+	NMain int `yaml:"N_M"`           //主链节点数
+	NWork int `yaml:"N_W"`           //工作分片节点数
+	FMain int `yaml:"F_M,omitempty"` //主链恶意节点数
+	FWork int `yaml:"F_W,omitempty"` //工作分片恶意节点数
+	M     int `yaml:"m"`             //分片个数（含主链）
 
 	IPList   []string `yaml:"IPList"`
 	PortList []string `yaml:"PortList"`
@@ -73,28 +79,32 @@ func (c *HonestConfig) ReadHonestConfig(ConfigName string, isLocal bool) error {
 	}
 
 	err = yaml.Unmarshal(byt, c)
+	if err != nil {
+		goto ret
+	}
+	normalizeShardConfig(c.N, c.F, &c.NMain, &c.NWork, &c.FMain, &c.FWork)
 	normalizeTiming(&c.Prepare, &c.WaitEpoch, &c.WaitBuf, c.PrepareTime, c.WaitTime)
 
 	c.isRead = true
+	if err := validateShardConfig(c.NMain, c.NWork, c.FMain, c.FWork, c.M); err != nil {
+		return errors.Wrap(err, ConfigReadError.Error())
+	}
 
 	if !isLocal {
-		if err != nil {
-			goto ret
-		}
-
-		if c.N <= 0 || c.F < 0 {
-			return errors.Wrap(errors.New("N or F is negative"),
-				ConfigReadError.Error())
-		}
-
-		if c.N != len(c.IPList) || c.N != len(c.PortList) {
+		total := c.TotalNodes()
+		if total != len(c.IPList) || total != len(c.PortList) {
 			return errors.Wrap(errors.New("ip list"+
-				" length or port list length isn't match N"),
+				" length or port list length isn't match total nodes"),
 				ConfigReadError.Error())
 		}
-		// id is begin from 0 to ... N-1
-		if c.PID >= c.N || c.PID < 0 {
-			return errors.New("ID is begin from 0 to N-1")
+		if c.PID >= total || c.PID < 0 {
+			return fmt.Errorf("PID must be in [0, %d)", total)
+		}
+		if c.Snumber < 0 || c.Snumber >= c.M {
+			return fmt.Errorf("Snum must be in [0, %d)", c.M)
+		}
+		if c.SID < 0 || c.SID >= c.ShardSize(c.Snumber) {
+			return fmt.Errorf("SID must be in [0, %d) for shard %d", c.ShardSize(c.Snumber), c.Snumber)
 		}
 	}
 
@@ -109,7 +119,7 @@ func (c *HonestConfig) GetN() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
 	}
-	return c.N, nil
+	return c.ShardSize(c.Snumber), nil
 }
 
 // Achieve number of corrupted nodes
@@ -118,7 +128,7 @@ func (c *HonestConfig) GetF() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
 	}
-	return c.F, nil
+	return c.ShardFaults(c.Snumber), nil
 }
 
 // Achieve ip list if defined
@@ -169,8 +179,9 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 	randomStream := suite.RandomStream()
 	var pks []string
 	var sks []string
+	total := c.TotalNodes()
 
-	for i := 0; i < c.N*c.M; i++ {
+	for i := 0; i < total; i++ {
 		sk, pk := bls.NewKeyPair(suite, randomStream)
 		skBytes, _ := sk.MarshalBinary()
 		pkBytes, _ := pk.MarshalBinary()
@@ -181,17 +192,17 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 	// Generate per-shard TBLS threshold keys (used by PB/MVBA).
 	tSuite := bn256.NewSuite()
 	tGroup := tSuite.G2()
-	threshold := 2*c.F + 1
+	threshold := 2*c.FMain + 1
 	if threshold < 1 {
 		threshold = 1
 	}
-	if threshold > c.N {
-		threshold = c.N
+	if threshold > c.NMain {
+		threshold = c.NMain
 	}
 
 	thresholdPKCommitsByShard := make([][]string, c.M) // only shard 0 filled
-	thresholdSKByPID := make([]string, c.N*c.M)        // only shard 0 filled
-	thresholdSKIByPID := make([]int, c.N*c.M)          // only shard 0 filled
+	thresholdSKByPID := make([]string, total)          // only shard 0 filled
+	thresholdSKIByPID := make([]int, total)            // only shard 0 filled
 
 	for shard := 0; shard < c.M; shard++ {
 		if shard != 0 {
@@ -209,10 +220,10 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 		}
 		thresholdPKCommitsByShard[shard] = commitStrings
 
-		shares := priPoly.Shares(c.N)
-		for sid := 0; sid < c.N; sid++ {
-			pid := shard*c.N + sid
-			if pid >= c.N*c.M {
+		shares := priPoly.Shares(c.NMain)
+		for sid := 0; sid < c.NMain; sid++ {
+			pid, ok := c.SIDToPID(shard, sid)
+			if !ok {
 				continue
 			}
 			skBytes, _ := shares[sid].V.MarshalBinary()
@@ -221,10 +232,14 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 		}
 	}
 
-	for i := 0; i < c.N*c.M; i++ {
+	for i := 0; i < total; i++ {
+		shard, sid, ok := c.PIDToShardAndSID(i)
+		if !ok {
+			return errors.New("failed to derive shard topology from PID")
+		}
 		c.PID = i
-		c.SID = i % c.N
-		c.Snumber = i / c.N
+		c.SID = sid
+		c.Snumber = shard
 
 		c.SK = sks[i]
 		c.PK = pks
@@ -249,4 +264,31 @@ func (c *HonestConfig) RemoteHonestGen(dir string) error {
 		}
 	}
 	return nil
+}
+
+func (c *HonestConfig) TotalNodes() int {
+	return totalNodes(c.NMain, c.NWork, c.M)
+}
+
+func (c *HonestConfig) ShardSize(shard int) int {
+	return shardSize(c.NMain, c.NWork, c.M, shard)
+}
+
+func (c *HonestConfig) ShardStart(shard int) int {
+	return shardStart(c.NMain, c.NWork, c.M, shard)
+}
+
+func (c *HonestConfig) ShardFaults(shard int) int {
+	if shard == 0 {
+		return c.FMain
+	}
+	return c.FWork
+}
+
+func (c *HonestConfig) PIDToShardAndSID(pid int) (int, int, bool) {
+	return pidToShardAndSID(c.NMain, c.NWork, c.M, pid)
+}
+
+func (c *HonestConfig) SIDToPID(shard int, sid int) (int, bool) {
+	return topology.SIDToPID(c.NMain, c.NWork, c.M, shard, sid)
 }

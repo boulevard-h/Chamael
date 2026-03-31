@@ -42,7 +42,22 @@ func main() {
 		trackTraffic = *c.TrackTraffic
 	}
 
-	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug, trackTraffic)
+	p := party.NewHonestParty(
+		uint32(c.NMain),
+		uint32(c.NWork),
+		uint32(c.FMain),
+		uint32(c.FWork),
+		uint32(c.M),
+		uint32(c.PID),
+		uint32(c.Snumber),
+		uint32(c.SID),
+		c.IPList,
+		c.PortList,
+		c.PK,
+		c.SK,
+		Debug,
+		trackTraffic,
+	)
 	if len(c.ThresholdPKCommits) > 0 || c.ThresholdSK != "" {
 		if len(c.ThresholdPKCommits) == 0 || c.ThresholdSK == "" {
 			log.Fatalln("config TBLS fields incomplete: need both ThresholdPKCommits and ThresholdSK")

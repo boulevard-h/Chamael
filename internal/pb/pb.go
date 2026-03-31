@@ -43,10 +43,13 @@ func Sender(ctx context.Context, p *party.HonestParty, ID []byte, value []byte, 
 		case <-ctx.Done():
 			return nil, nil, false
 		case m := <-p.GetMessage(messageTypeEcho, ID):
-			if m.Sender < p.Snumber*p.N || m.Sender >= (p.Snumber+1)*p.N {
+			if !p.IsPIDInShard(m.Sender, p.Snumber) {
 				continue
 			}
-			senderSID := m.Sender % p.N
+			_, senderSID, ok := p.PIDToShardAndSID(m.Sender)
+			if !ok {
+				continue
+			}
 			if _, ok := seenEcho[senderSID]; ok {
 				continue
 			}
@@ -94,7 +97,10 @@ func Receiver(
 	hashVerifyMap *sync.Map,
 	sigVerifyMap *sync.Map,
 ) ([]byte, []byte, bool) {
-	senderPID := p.Snumber*p.N + sender // sender is SID; send uses global PID.
+	senderPID, ok := p.SIDToPID(p.Snumber, sender) // sender is SID; send uses global PID.
+	if !ok {
+		return nil, nil, false
+	}
 	valueCh := p.GetMessage(messageTypeValue, ID)
 
 	for {

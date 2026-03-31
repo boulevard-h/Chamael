@@ -153,7 +153,7 @@ func waitForMVBAResults(p *party.HonestParty, epochNum uint32, thresholdMain int
 	for len(seen) < thresholdMain {
 		select {
 		case m := <-ch:
-			if m.Sender >= p.N { // must be from shard 0
+			if !p.IsPIDInShard(m.Sender, 0) {
 				continue
 			}
 			if _, ok := seen[m.Sender]; ok {
