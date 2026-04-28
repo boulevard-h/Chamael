@@ -9,14 +9,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var ConfigReadError = errors.New("config read fail, check config.yaml in root directory")
-var NotReadFileError = errors.New("execute run ReadConfig function before querying config")
-var NotDefined = errors.New("this item in config is allowed to omit")
+var ConfigReadError = errors.New("failed to read config; check config.yaml in the root directory")
+var NotReadFileError = errors.New("read config before querying config values")
+var NotDefined = errors.New("this config item may be omitted")
 
 // Implement Config interface in local linux machine setting
 type CommonConfig struct {
-	N int `yaml:"N,omitempty"` // legacy: equal-size shard node count
-	F int `yaml:"F,omitempty"` // legacy: equal-size shard fault bound
+	N int `yaml:"N,omitempty"` // compatibility: equal-size shard node count
+	F int `yaml:"F,omitempty"` // compatibility: equal-size shard fault bound
 
 	NMain int `yaml:"N_M"`           // main-chain node count
 	NWork int `yaml:"N_W"`           // worker-shard node count
@@ -38,7 +38,7 @@ type CommonConfig struct {
 	Prepare   int `yaml:"Prepare"`
 	WaitEpoch int `yaml:"WaitEpoch"`
 	WaitBuf   int `yaml:"WaitBuf"`
-	// Deprecated legacy timing settings, kept for backward compatibility.
+	// Compatibility timing settings.
 	PrepareTime int `yaml:"PrepareTime,omitempty"`
 	WaitTime    int `yaml:"WaitTime,omitempty"`
 	// MessageBuffer controls the size of internal network/dispatch channels.
@@ -81,7 +81,7 @@ func (c *CommonConfig) ReadCommonConfig(ConfigName string, isLocal bool) error {
 		total := c.TotalNodes()
 		if total != len(c.IPList) || total != len(c.PortList) {
 			return errors.Wrap(errors.New("ip list"+
-				" length or port list length isn't match total nodes"),
+				" length or port list length does not match total nodes"),
 				ConfigReadError.Error())
 		}
 		if c.PID >= total || c.PID < 0 {
@@ -100,8 +100,8 @@ ret:
 	return errors.Wrap(err, ConfigReadError.Error())
 }
 
-// Achieve numbers of total nodes
-// the return value is a positive integer
+// GetN returns the number of nodes in this shard.
+// The return value is a positive integer.
 func (c *CommonConfig) GetN() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
@@ -109,8 +109,8 @@ func (c *CommonConfig) GetN() (int, error) {
 	return c.ShardSize(c.Snumber), nil
 }
 
-// Achieve number of corrupted nodes
-// return value is a positive integer
+// GetF returns the Byzantine node bound in this shard.
+// The return value is a positive integer.
 func (c *CommonConfig) GetF() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
@@ -118,8 +118,7 @@ func (c *CommonConfig) GetF() (int, error) {
 	return c.ShardFaults(c.Snumber), nil
 }
 
-// Achieve ip list if defined
-// return a ip list of defined ip in config file
+// GetIPList returns the configured IP list when present.
 func (c *CommonConfig) GetIPList() ([]string, error) {
 	if !c.isRead {
 		return nil, NotReadFileError
@@ -130,8 +129,7 @@ func (c *CommonConfig) GetIPList() ([]string, error) {
 	return c.IPList, nil
 }
 
-// Achieve port list if defined
-// return a port list of defined port in config file
+// GetPortList returns the configured port list when present.
 func (c *CommonConfig) GetPortList() ([]string, error) {
 	if !c.isRead {
 		return nil, NotReadFileError

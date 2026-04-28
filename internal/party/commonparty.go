@@ -13,22 +13,22 @@ import (
 
 // CommonParty is a struct of normal consensus parties
 type CommonParty struct {
-	MainN             uint32
-	WorkN             uint32
-	MainF             uint32
-	WorkF             uint32
-	N                 uint32
-	F                 uint32
-	m                 uint32 // shard count
-	PID               uint32
-	Snumber           uint32 // shard ID of this node
-	SID               uint32 // node ID within the shard
-	ipList            []string
-	portList          []string
-	sendChannels      []chan *protobuf.Message
-	dispatcheChannels *sync.Map
-	ShardList         []int // shards this node communicates with
-	Debug             bool
+	MainN            uint32
+	WorkN            uint32
+	MainF            uint32
+	WorkF            uint32
+	N                uint32
+	F                uint32
+	m                uint32 // shard count
+	PID              uint32
+	Snumber          uint32 // shard ID of this node
+	SID              uint32 // node ID within the shard
+	ipList           []string
+	portList         []string
+	sendChannels     []chan *protobuf.Message
+	dispatchChannels *sync.Map
+	ShardList        []int // shards this node communicates with
+	Debug            bool
 }
 
 // NewCommonParty return a new common party object
@@ -56,11 +56,11 @@ func NewCommonParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m ui
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *CommonParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
+	p.dispatchChannels = core.MakeDispatchChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
 	return nil
 }
 
-// InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
+// InitSendChannel initializes outbound send channels after all receive channels are ready.
 func (p *CommonParty) InitSendChannel() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -156,9 +156,9 @@ func (p *CommonParty) broadcastRange(m *protobuf.Message, start uint32, end uint
 	return formatBroadcastError(scope, failedNodes, int(end-start))
 }
 
-// GetMessage Try to get a message according to messageType, ID
+// GetMessage returns the dispatch channel for a message type and ID.
 func (p *CommonParty) GetMessage(messageType string, ID []byte) chan *protobuf.Message {
-	return core.GetOrCreateDispatchChannel(p.dispatcheChannels, messageType, ID)
+	return core.GetOrCreateDispatchChannel(p.dispatchChannels, messageType, ID)
 }
 
 func (p *CommonParty) checkInit() bool {

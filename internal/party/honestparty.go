@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -19,22 +18,21 @@ import (
 )
 
 type HonestParty struct {
-	MainN             uint32
-	WorkN             uint32
-	MainF             uint32
-	WorkF             uint32
-	N                 uint32 // node count in this node's shard
-	F                 uint32 // Byzantine node count in this node's shard
-	M                 uint32 // shard count
-	PID               uint32
-	Snumber           uint32 // shard ID of this node
-	SID               uint32 // node ID within the shard
-	ipList            []string
-	portList          []string
-	sendChannels      []chan *protobuf.Message
-	dispatcheChannels *sync.Map
-	Acc               *big.Int // transaction accumulator
-	Debug             bool
+	MainN            uint32
+	WorkN            uint32
+	MainF            uint32
+	WorkF            uint32
+	N                uint32 // node count in this node's shard
+	F                uint32 // Byzantine node count in this node's shard
+	M                uint32 // shard count
+	PID              uint32
+	Snumber          uint32 // shard ID of this node
+	SID              uint32 // node ID within the shard
+	ipList           []string
+	portList         []string
+	sendChannels     []chan *protobuf.Message
+	dispatchChannels *sync.Map
+	Debug            bool
 
 	PK []kyber.Point
 	SK kyber.Scalar
@@ -51,7 +49,6 @@ type HonestParty struct {
 
 func NewHonestParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, trackTraffic bool) *HonestParty {
 
-	//suite := bn256.NewSuite()
 	suite := pairing.NewSuiteBn256()
 
 	skstr, _ := base64.StdEncoding.DecodeString(sk)
@@ -121,11 +118,11 @@ func NewHonestPartyWithThreshold(mainN uint32, workN uint32, mainF uint32, workF
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
+	p.dispatchChannels = core.MakeDispatchChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.TotalNodes())), p.TotalNodes())
 	return nil
 }
 
-// InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
+// InitSendChannel initializes outbound send channels after all receive channels are ready.
 func (p *HonestParty) InitSendChannel() error {
 	homeDir, err := os.UserHomeDir()
 	var dirname string
@@ -235,9 +232,9 @@ func (p *HonestParty) broadcastRange(m *protobuf.Message, start uint32, end uint
 	return formatBroadcastError(scope, failedNodes, int(end-start))
 }
 
-// GetMessage Try to get a message according to messageType, ID
+// GetMessage returns the dispatch channel for a message type and ID.
 func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.Message {
-	return core.GetOrCreateDispatchChannel(p.dispatcheChannels, messageType, ID)
+	return core.GetOrCreateDispatchChannel(p.dispatchChannels, messageType, ID)
 }
 
 func (p *HonestParty) IntraShardTrafficMB() float64 {

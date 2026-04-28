@@ -136,9 +136,6 @@ func main() {
 			ctx_inputChannel <- ctxs
 		}
 	}
-	//loadDuration := time.Since(loadStartTime)
-	//fmt.Printf("Loaded transactions from the database in %.2f ms\n", float64(loadDuration.Nanoseconds())/1e6)
-
 	// Read the start-time string from command-line arguments. Format: 2006-01-02 15:04:05.000.
 	if len(os.Args) < 4 {
 		log.Fatalln("Please input the start time:2006-01-02 15:04:05.000")
@@ -162,7 +159,6 @@ func main() {
 	block_delay_channel := make(chan time.Duration, 4096)
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
-	//timeChannel <- time.Now()
 	bft.AreopagusProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitEpoch)
 	logger.CalculateTPS(c, p, homeDir+"/Areopagus/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
 	if p.Debug {

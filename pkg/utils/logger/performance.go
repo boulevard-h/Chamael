@@ -184,19 +184,6 @@ roundDelayDone:
 		avgRoundDelay = (float64(totalRoundDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(roundDelayCount)
 	}
 
-	/*
-		fmt.Printf("totalBlockDelay: %v\n", totalBlockDelay)
-		fmt.Printf("totalRoundDelay: %v\n", totalRoundDelay)
-		fmt.Printf("totalExtraDelay: %v\n", totalExtraDelay)
-
-		if blockDelayCount > 0 {
-			avgBlockDelay = (float64(totalBlockDelay.Milliseconds())) / float64(blockDelayCount)
-		}
-		if roundDelayCount > 0 {
-			avgRoundDelay = (float64(totalRoundDelay.Milliseconds())) / float64(roundDelayCount)
-		}
-	*/
-
 	latency := (1-c.Crate)*avgBlockDelay + c.Crate*(avgBlockDelay+avgRoundDelay)
 	isWorkerShard := p.Snumber != 0
 	workerSnapshots := p.WorkerTimingSnapshots()

@@ -24,7 +24,7 @@ src = src.replace(
     "RawDescriptor: []byte(file_Message_proto_rawDesc),",
 )
 
-# If we've removed all unsafe.* uses, drop the import.
+# Drop the import when no unsafe.* uses remain.
 if "unsafe." not in src:
     src = src.replace('\n\tunsafe "unsafe"\n', "\n")
 

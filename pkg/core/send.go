@@ -49,7 +49,7 @@ func dialSendConn(hostIP string, hostPort string) *net.TCPConn {
 func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool) chan *protobuf.Message {
 	var fileLogger *log.Logger
 	conn := dialSendConn(hostIP, hostPort)
-	//Make the send channel and the handle func
+	// Create the send channel and handler.
 	sendChannel := make(chan *protobuf.Message, MessageBufferSize())
 
 	go func(conn *net.TCPConn, channel chan *protobuf.Message) {
@@ -59,19 +59,19 @@ func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool)
 			fileLogger = log.New(file, "[MessageLogger] ", log.Ldate|log.Ltime|log.Lmicroseconds)
 		}
 		for {
-			//Pop protobuf.Message form sendchannel
+			// Pop protobuf.Message from sendChannel.
 
 			m := <-(channel)
 			if Debug == true {
 				fileLogger.Println(m)
 			}
-			//Do Marshal
+			// Marshal the message.
 			byt, err1 := proto.Marshal(m)
 			if err1 != nil {
 				log.Printf("proto.Marshal failed for outbound message to %s:%s, dropping message: %v", hostIP, hostPort, err1)
 				continue
 			}
-			//Send bytes
+			// Send bytes.
 
 			length := len(byt)
 			for {

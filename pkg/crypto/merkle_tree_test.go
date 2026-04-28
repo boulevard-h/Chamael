@@ -3,58 +3,23 @@ package crypto
 import (
 	"bytes"
 	"fmt"
-	m "github.com/cbergoon/merkletree"
 	"testing"
 )
 
 func generateDummyMerkleTree() (*MerkleTree, error) {
 	data := [][]string{
-		{"<Dummy TX: xxxx01\n", "<Dummy TX: xxxx02\n"},
-		{"<Dummy TX: xxxx03\n", "<Dummy TX: xxxx04\n"},
-		{"<Dummy TX: xxxx05\n", "<Dummy TX: xxxx06\n"},
-		{"<Dummy TX: xxxx07\n", "<Dummy TX: xxxx08\n"},
-		{"<Dummy TX: xxxx09\n", "<Dummy TX: xxxx10\n"},
-		{"<Dummy TX: xxxx11\n", "<Dummy TX: xxxx12\n"},
-		{"<Dummy TX: xxxx13\n", "<Dummy TX: xxxx14\n"},
-		{"<Dummy TX: xxxx15\n", "<Dummy TX: xxxx16\n"},
+		{"<Dummy TX: TX0001\n", "<Dummy TX: TX0002\n"},
+		{"<Dummy TX: TX0003\n", "<Dummy TX: TX0004\n"},
+		{"<Dummy TX: TX0005\n", "<Dummy TX: TX0006\n"},
+		{"<Dummy TX: TX0007\n", "<Dummy TX: TX0008\n"},
+		{"<Dummy TX: TX0009\n", "<Dummy TX: TX0010\n"},
+		{"<Dummy TX: TX0011\n", "<Dummy TX: TX0012\n"},
+		{"<Dummy TX: TX0013\n", "<Dummy TX: TX0014\n"},
+		{"<Dummy TX: TX0015\n", "<Dummy TX: TX0016\n"},
 	}
 	return NewMerkleTree(data)
 }
 
-/*
-func validateMerkleTrees(t *testing.T, tree1 *m.MerkleTree, tree2 *m.MerkleTree) {
-	// Verify that root nodes match.
-	validateNodes(t, tree1.Root, tree2.Root)
-
-	// Verify that leaf nodes match.
-	if len(tree1.Leafs) != len(tree2.Leafs) {
-		t.Fatalf("Leaf count mismatch: got %d, want %d", len(tree2.Leafs), len(tree1.Leafs))
-	}
-	for i := 0; i < len(tree1.Leafs); i++ {
-		validateNodes(t, tree1.Leafs[i], tree2.Leafs[i])
-	}
-} */
-
-func validateNodes(t *testing.T, node1 *m.Node, node2 *m.Node) {
-	if node1 == nil && node2 == nil {
-		return
-	}
-	if node1 == nil || node2 == nil {
-		t.Errorf("Node mismatch: one of the nodes is nil")
-		return
-	}
-
-	// Verify that hashes match.
-	if !bytes.Equal(node1.Hash, node2.Hash) {
-		t.Errorf("Node hash mismatch: got %x, want %x", node2.Hash, node1.Hash)
-	}
-
-	// Verify child nodes.
-	validateNodes(t, node1.Left, node2.Left)
-	validateNodes(t, node1.Right, node2.Right)
-}
-
-// <Dummy TX: DXMEZ80U753ISQPWEIRBZSVZ2ALAU9H6, Userset: 0, Input Shard: [0], Input Valid: [1], Output Shard: 0, Output Valid: 1 >
 func TestNewMerkleTree(t *testing.T) {
 	tre, err := generateDummyMerkleTree()
 	if err != nil {
@@ -77,14 +42,14 @@ func TestNewMerkleTree(t *testing.T) {
 
 func TestVerifyMerkleTreeProof(t *testing.T) {
 	data := [][]string{
-		{"<Dummy TX: xxxx01\n", "<Dummy TX: xxxx02\n"},
-		{"<Dummy TX: xxxx03\n", "<Dummy TX: xxxx04\n"},
-		{"<Dummy TX: xxxx05\n", "<Dummy TX: xxxx06\n"},
-		{"<Dummy TX: xxxx07\n", "<Dummy TX: xxxx08\n"},
-		{"<Dummy TX: xxxx09\n", "<Dummy TX: xxxx10\n"},
-		{"<Dummy TX: xxxx11\n", "<Dummy TX: xxxx12\n"},
-		{"<Dummy TX: xxxx13\n", "<Dummy TX: xxxx14\n"},
-		{"<Dummy TX: xxxx15\n", "<Dummy TX: xxxx16\n"},
+		{"<Dummy TX: TX0001\n", "<Dummy TX: TX0002\n"},
+		{"<Dummy TX: TX0003\n", "<Dummy TX: TX0004\n"},
+		{"<Dummy TX: TX0005\n", "<Dummy TX: TX0006\n"},
+		{"<Dummy TX: TX0007\n", "<Dummy TX: TX0008\n"},
+		{"<Dummy TX: TX0009\n", "<Dummy TX: TX0010\n"},
+		{"<Dummy TX: TX0011\n", "<Dummy TX: TX0012\n"},
+		{"<Dummy TX: TX0013\n", "<Dummy TX: TX0014\n"},
+		{"<Dummy TX: TX0015\n", "<Dummy TX: TX0016\n"},
 	}
 	tre, err := NewMerkleTree(data)
 	if err != nil {
@@ -113,55 +78,3 @@ func TestVerifyMerkleTreeProof(t *testing.T) {
 		t.Errorf("verify fail")
 	}
 }
-
-/*
-func TestMerkleTreeSerialization(t *testing.T) {
-		// Generate a Merkle tree with the shared helper.
-	tre, err := generateDummyMerkleTree()
-	if err != nil {
-		t.Fatalf("Failed to generate Merkle Tree: %s", err.Error())
-	}
-
-		// Test serialization.
-	data, err := tre.Marshal()
-	if err != nil {
-		t.Fatalf("Failed to serialize Merkle Tree: %s", err.Error())
-	}
-
-		// Test deserialization.
-	var newTree MerkleTree
-	err = newTree.Unmarshal(data)
-	if err != nil {
-		t.Fatalf("Failed to deserialize Merkle Tree: %s", err.Error())
-	}
-
-		// Verify that contents data matches.
-	if len(tre.contents) != len(newTree.contents) {
-		t.Fatalf("Contents length mismatch: got %d, want %d", len(newTree.contents), len(tre.contents))
-	}
-	for i := 0; i < len(tre.contents); i++ {
-		origContent, ok1 := tre.contents[i].(*implContent)
-		newContent, ok2 := newTree.contents[i].(*implContent)
-
-		if !ok1 || !ok2 {
-			t.Errorf("Content type mismatch at index %d", i)
-			continue
-		}
-
-			// Compare content length.
-		if len(origContent.x) != len(newContent.x) {
-			t.Errorf("Content length mismatch at index %d: got %d, want %d", i, len(newContent.x), len(origContent.x))
-			continue
-		}
-
-			// Compare each content item.
-		for j := 0; j < len(origContent.x); j++ {
-			if origContent.x[j] != newContent.x[j] {
-				t.Errorf("Content mismatch at index %d, item %d: got %s, want %s", i, j, newContent.x[j], origContent.x[j])
-			}
-		}
-	}
-
-		// Verify that mktree is identical.
-	validateMerkleTrees(t, tre.mktree, newTree.mktree)
-}*/

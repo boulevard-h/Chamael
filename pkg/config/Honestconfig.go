@@ -18,8 +18,8 @@ import (
 
 // Implement Config interface in local linux machine setting
 type HonestConfig struct {
-	N int `yaml:"N,omitempty"` // legacy: equal-size shard node count
-	F int `yaml:"F,omitempty"` // legacy: equal-size shard fault bound
+	N int `yaml:"N,omitempty"` // compatibility: equal-size shard node count
+	F int `yaml:"F,omitempty"` // compatibility: equal-size shard fault bound
 
 	NMain int `yaml:"N_M"`           // main-chain node count
 	NWork int `yaml:"N_W"`           // worker-shard node count
@@ -43,7 +43,7 @@ type HonestConfig struct {
 
 	// TBLS threshold key material (per-shard).
 	// ThresholdPKCommits are the marshaled points of the public polynomial commitments.
-	// ThresholdSK is the marshaled scalar of the local private share, with its index ThresholdSKI.
+	// ThresholdSK is the marshaled scalar of the local threshold share, with its index ThresholdSKI.
 	ThresholdPKCommits []string `yaml:"ThresholdPKCommits,omitempty"`
 	ThresholdSKI       int      `yaml:"ThresholdSKI,omitempty"`
 	ThresholdSK        string   `yaml:"ThresholdSK,omitempty"`
@@ -51,7 +51,7 @@ type HonestConfig struct {
 	Prepare   int `yaml:"Prepare"`
 	WaitEpoch int `yaml:"WaitEpoch"`
 	WaitBuf   int `yaml:"WaitBuf"`
-	// Deprecated legacy timing settings, kept for backward compatibility.
+	// Compatibility timing settings.
 	PrepareTime int `yaml:"PrepareTime,omitempty"`
 	WaitTime    int `yaml:"WaitTime,omitempty"`
 	// MessageBuffer controls the size of internal network/dispatch channels.
@@ -94,7 +94,7 @@ func (c *HonestConfig) ReadHonestConfig(ConfigName string, isLocal bool) error {
 		total := c.TotalNodes()
 		if total != len(c.IPList) || total != len(c.PortList) {
 			return errors.Wrap(errors.New("ip list"+
-				" length or port list length isn't match total nodes"),
+				" length or port list length does not match total nodes"),
 				ConfigReadError.Error())
 		}
 		if c.PID >= total || c.PID < 0 {
@@ -113,8 +113,8 @@ ret:
 	return errors.Wrap(err, ConfigReadError.Error())
 }
 
-// Achieve numbers of total nodes
-// the return value is a positive integer
+// GetN returns the number of nodes in this shard.
+// The return value is a positive integer.
 func (c *HonestConfig) GetN() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
@@ -122,8 +122,8 @@ func (c *HonestConfig) GetN() (int, error) {
 	return c.ShardSize(c.Snumber), nil
 }
 
-// Achieve number of corrupted nodes
-// return value is a positive integer
+// GetF returns the Byzantine node bound in this shard.
+// The return value is a positive integer.
 func (c *HonestConfig) GetF() (int, error) {
 	if !c.isRead {
 		return 0, NotReadFileError
@@ -131,8 +131,7 @@ func (c *HonestConfig) GetF() (int, error) {
 	return c.ShardFaults(c.Snumber), nil
 }
 
-// Achieve ip list if defined
-// return a ip list of defined ip in config file
+// GetIPList returns the configured IP list when present.
 func (c *HonestConfig) GetIPList() ([]string, error) {
 	if !c.isRead {
 		return nil, NotReadFileError
@@ -143,8 +142,7 @@ func (c *HonestConfig) GetIPList() ([]string, error) {
 	return c.IPList, nil
 }
 
-// Achieve port list if defined
-// return a port list of defined port in config file
+// GetPortList returns the configured port list when present.
 func (c *HonestConfig) GetPortList() ([]string, error) {
 	if !c.isRead {
 		return nil, NotReadFileError

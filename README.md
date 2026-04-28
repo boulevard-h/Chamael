@@ -4,7 +4,7 @@ Go implementation of Areopagus
 
 **Note**: place the project directory at `$HOME/Areopagus`.
 
-if run failed, you need to run pkill:
+If a previous local run is still active, stop existing processes before restarting:
 
 ``` bash
 pkill -f main

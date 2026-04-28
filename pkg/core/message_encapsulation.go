@@ -23,7 +23,7 @@ func Encapsulation(messageType string, ID []byte, sender uint32, payloadMessage 
 	}
 }
 
-// Decapsulation decapsulates a message to it's original type
+// Decapsulation decodes a message into its payload type.
 func Decapsulation(messageType string, m *protobuf.Message) (any, error) {
 	if m == nil {
 		return nil, fmt.Errorf("decapsulation failed for %q: message is nil", messageType)

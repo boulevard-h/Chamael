@@ -62,13 +62,6 @@ func CrossTxGenerator(size, shardNum, Rrate int, PID int, chars string) string {
 	// Generate input validity
 	inputValid := make([]int, inputShardNum)
 	for i := range inputValid {
-		/*
-			if rand.Intn(100) < Rrate {
-				inputValid[i] = 1
-			} else {
-				inputValid[i] = 0
-			}
-		*/
 		inputValid[i] = 1 // Currently only valid transactions are considered.
 	}
 

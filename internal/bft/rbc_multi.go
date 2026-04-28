@@ -75,7 +75,7 @@ func RBCMultiEpochDeliver(p *party.HonestParty, epoch uint32, selfTxs []string, 
 // RBCMultiEpochDeliverWithBitmapBroadcast runs N RBC instances in one epoch (one proposer per instance).
 // When this node receives (2f+1) delivered RBC instances, it broadcasts a bitmap (with exactly 2f+1 bits set)
 // to all nodes in shard 0. It still returns ONLY the txs delivered by my proposer instance (else nil on timeout),
-// keeping the original output behavior used by the demo metrics.
+// preserving the per-proposer output expected by the metrics pipeline.
 func RBCMultiEpochDeliverWithBitmapBroadcast(p *party.HonestParty, epoch uint32, selfTxs []string, timeout time.Duration) []string {
 	if timeout <= 0 {
 		timeout = 5 * time.Second

@@ -15,7 +15,7 @@ func init() {
 	gob.Register(&implContent{})
 }
 
-// implement of m.Content
+// implContent implements m.Content.
 type implContent struct {
 	x []string
 }
@@ -44,7 +44,7 @@ type MerkleTree struct {
 	contents []m.Content
 }
 
-// NewMerkleTree generates a merkletree
+// NewMerkleTree generates a Merkle tree.
 func NewMerkleTree(data [][]string) (*MerkleTree, error) {
 	contents := []m.Content{}
 	for _, d := range data {
@@ -73,7 +73,7 @@ func (t *MerkleTree) GetMerkleTreeRoot() []byte {
 // GetMerkleTreeProof returns a vector commitment
 func (t *MerkleTree) GetMerkleTreeProof(id int) ([][]byte, []int64) {
 	if t == nil {
-		fmt.Println("Waring: Merkle tree is nil")
+		fmt.Println("Warning: Merkle tree is nil")
 		return nil, nil // Return empty values to signal failure.
 	}
 	if id < 0 || id >= len(t.contents) {

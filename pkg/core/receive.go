@@ -20,7 +20,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 	var lis *net.TCPListener
 	var err1, err2 error
 	retry := true
-	//Retry to make listener
+	// Retry until the listener is created.
 	for retry {
 		addr, err1 = net.ResolveTCPAddr("tcp4", ":"+port)
 		lis, err2 = net.ListenTCP("tcp4", addr)
@@ -32,7 +32,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 		}
 	}
 	log.Println("create listener", addr, "success")
-	//Make the receive channel and the handle func
+	// Create the receive channel and handler.
 	var conn *net.TCPConn
 	var err3 error
 	var fileLogger *log.Logger
@@ -45,7 +45,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 			fileLogger = log.New(file, "[MessageLogger] ", log.Ldate|log.Ltime|log.Lmicroseconds)
 		}
 		for {
-			//The handle func run forever
+			// The handler runs continuously.
 			conn, err3 = lis.AcceptTCP()
 			if err3 != nil {
 				IncReceiveAcceptRetries()
@@ -54,10 +54,10 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 				continue
 			}
 			conn.SetKeepAlive(true)
-			//Once connect to a node, make a sub-handle func to handle this connection
+			// Start a handler for each incoming connection.
 			go func(conn *net.TCPConn, channel chan *protobuf.Message) {
 				for {
-					//Receive bytes
+					// Receive bytes.
 					lengthBuf := make([]byte, 4)
 					_, err1 := io.ReadFull(conn, lengthBuf)
 					length := utils.BytesToInt(lengthBuf)
@@ -67,12 +67,12 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 					if err1 != nil || err2 != nil {
 						IncReceiveBreakdowns()
 						if num <= 10 || rand.Intn(num) < 10 {
-							log.Printf("The receive channel of %s (from %s) has break down", conn.LocalAddr(), conn.RemoteAddr())
+							log.Printf("receive channel %s from %s disconnected", conn.LocalAddr(), conn.RemoteAddr())
 						}
 						return
 					}
 
-					//Do Unmarshal
+					// Unmarshal the message.
 					var m protobuf.Message
 					err3 := proto.Unmarshal(buf, &m)
 					if Debug == true {
@@ -82,7 +82,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 						log.Printf("Unmarshal failed on %s from %s: %v", conn.LocalAddr(), conn.RemoteAddr(), err3)
 						continue
 					}
-					//Push protobuf.Message to receivechannel
+					// Push protobuf.Message to receiveChannel.
 					(channel) <- &m
 				}
 

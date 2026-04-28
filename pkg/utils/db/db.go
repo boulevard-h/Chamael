@@ -15,7 +15,6 @@ func SaveTxsToSQL(txs []string, filename string) error {
 		if err != nil {
 			return fmt.Errorf("delete sqlite database file %q failed: %w", filename, err)
 		}
-		//log.Printf("Existing database file '%s' removed.\n", filename)
 	}
 
 	db, err := sql.Open("sqlite3", filename)
