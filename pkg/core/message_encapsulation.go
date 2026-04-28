@@ -109,6 +109,12 @@ func marshalPayload(messageType string, payloadMessage any) ([]byte, error) {
 			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
 		}
 		return proto.Marshal(payload)
+	case "CTX_Distribute":
+		payload, ok := payloadMessage.(*protobuf.CTX_Distribute)
+		if !ok {
+			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
+		}
+		return proto.Marshal(payload)
 
 	case "VALUE":
 		payload, ok := payloadMessage.(*protobuf.Value)
@@ -188,6 +194,8 @@ func newPayloadMessage(messageType string) (proto.Message, error) {
 		return &protobuf.RBC_Bitmap{}, nil
 	case "MVBA_Result":
 		return &protobuf.MVBA_Result{}, nil
+	case "CTX_Distribute":
+		return &protobuf.CTX_Distribute{}, nil
 	case "VALUE":
 		return &protobuf.Value{}, nil
 	case "ECHO":

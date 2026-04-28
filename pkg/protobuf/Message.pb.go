@@ -659,6 +659,77 @@ func (x *MVBA_Result) GetResult() []byte {
 	return nil
 }
 
+// Cross-shard: producer worker shard distributes a batch of cross-shard txs
+// to nodes in another input shard so that shard can include them in its RBC
+// for the same epoch.
+type CTX_Distribute struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Epoch         uint32                 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	TargetShard   uint32                 `protobuf:"varint,2,opt,name=target_shard,json=targetShard,proto3" json:"target_shard,omitempty"`
+	SourceShard   uint32                 `protobuf:"varint,3,opt,name=source_shard,json=sourceShard,proto3" json:"source_shard,omitempty"`
+	Txs           []string               `protobuf:"bytes,4,rep,name=txs,proto3" json:"txs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CTX_Distribute) Reset() {
+	*x = CTX_Distribute{}
+	mi := &file_Message_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CTX_Distribute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CTX_Distribute) ProtoMessage() {}
+
+func (x *CTX_Distribute) ProtoReflect() protoreflect.Message {
+	mi := &file_Message_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CTX_Distribute.ProtoReflect.Descriptor instead.
+func (*CTX_Distribute) Descriptor() ([]byte, []int) {
+	return file_Message_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CTX_Distribute) GetEpoch() uint32 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *CTX_Distribute) GetTargetShard() uint32 {
+	if x != nil {
+		return x.TargetShard
+	}
+	return 0
+}
+
+func (x *CTX_Distribute) GetSourceShard() uint32 {
+	if x != nil {
+		return x.SourceShard
+	}
+	return 0
+}
+
+func (x *CTX_Distribute) GetTxs() []string {
+	if x != nil {
+		return x.Txs
+	}
+	return nil
+}
+
 // Provable Broadcast (PB) messages
 type Value struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -670,7 +741,7 @@ type Value struct {
 
 func (x *Value) Reset() {
 	*x = Value{}
-	mi := &file_Message_proto_msgTypes[12]
+	mi := &file_Message_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -682,7 +753,7 @@ func (x *Value) String() string {
 func (*Value) ProtoMessage() {}
 
 func (x *Value) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[12]
+	mi := &file_Message_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -695,7 +766,7 @@ func (x *Value) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Value.ProtoReflect.Descriptor instead.
 func (*Value) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{12}
+	return file_Message_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Value) GetValue() []byte {
@@ -721,7 +792,7 @@ type Echo struct {
 
 func (x *Echo) Reset() {
 	*x = Echo{}
-	mi := &file_Message_proto_msgTypes[13]
+	mi := &file_Message_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -733,7 +804,7 @@ func (x *Echo) String() string {
 func (*Echo) ProtoMessage() {}
 
 func (x *Echo) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[13]
+	mi := &file_Message_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -746,7 +817,7 @@ func (x *Echo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Echo.ProtoReflect.Descriptor instead.
 func (*Echo) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{13}
+	return file_Message_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Echo) GetSigshare() []byte {
@@ -767,7 +838,7 @@ type Lock struct {
 
 func (x *Lock) Reset() {
 	*x = Lock{}
-	mi := &file_Message_proto_msgTypes[14]
+	mi := &file_Message_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +850,7 @@ func (x *Lock) String() string {
 func (*Lock) ProtoMessage() {}
 
 func (x *Lock) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[14]
+	mi := &file_Message_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +863,7 @@ func (x *Lock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lock.ProtoReflect.Descriptor instead.
 func (*Lock) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{14}
+	return file_Message_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Lock) GetValue() []byte {
@@ -819,7 +890,7 @@ type Finish struct {
 
 func (x *Finish) Reset() {
 	*x = Finish{}
-	mi := &file_Message_proto_msgTypes[15]
+	mi := &file_Message_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -831,7 +902,7 @@ func (x *Finish) String() string {
 func (*Finish) ProtoMessage() {}
 
 func (x *Finish) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[15]
+	mi := &file_Message_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -844,7 +915,7 @@ func (x *Finish) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Finish.ProtoReflect.Descriptor instead.
 func (*Finish) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{15}
+	return file_Message_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Finish) GetValue() []byte {
@@ -870,7 +941,7 @@ type Done struct {
 
 func (x *Done) Reset() {
 	*x = Done{}
-	mi := &file_Message_proto_msgTypes[16]
+	mi := &file_Message_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +953,7 @@ func (x *Done) String() string {
 func (*Done) ProtoMessage() {}
 
 func (x *Done) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[16]
+	mi := &file_Message_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +966,7 @@ func (x *Done) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Done.ProtoReflect.Descriptor instead.
 func (*Done) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{16}
+	return file_Message_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Done) GetCoinShare() []byte {
@@ -915,7 +986,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_Message_proto_msgTypes[17]
+	mi := &file_Message_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +998,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[17]
+	mi := &file_Message_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -940,7 +1011,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{17}
+	return file_Message_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Halt) GetValue() []byte {
@@ -968,7 +1039,7 @@ type PreVote struct {
 
 func (x *PreVote) Reset() {
 	*x = PreVote{}
-	mi := &file_Message_proto_msgTypes[18]
+	mi := &file_Message_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -980,7 +1051,7 @@ func (x *PreVote) String() string {
 func (*PreVote) ProtoMessage() {}
 
 func (x *PreVote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[18]
+	mi := &file_Message_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -993,7 +1064,7 @@ func (x *PreVote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreVote.ProtoReflect.Descriptor instead.
 func (*PreVote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{18}
+	return file_Message_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PreVote) GetVote() bool {
@@ -1029,7 +1100,7 @@ type Vote struct {
 
 func (x *Vote) Reset() {
 	*x = Vote{}
-	mi := &file_Message_proto_msgTypes[19]
+	mi := &file_Message_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +1112,7 @@ func (x *Vote) String() string {
 func (*Vote) ProtoMessage() {}
 
 func (x *Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[19]
+	mi := &file_Message_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +1125,7 @@ func (x *Vote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vote.ProtoReflect.Descriptor instead.
 func (*Vote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{19}
+	return file_Message_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Vote) GetVote() bool {
@@ -1096,7 +1167,7 @@ type BLockSetValue struct {
 
 func (x *BLockSetValue) Reset() {
 	*x = BLockSetValue{}
-	mi := &file_Message_proto_msgTypes[20]
+	mi := &file_Message_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1179,7 @@ func (x *BLockSetValue) String() string {
 func (*BLockSetValue) ProtoMessage() {}
 
 func (x *BLockSetValue) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[20]
+	mi := &file_Message_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1192,7 @@ func (x *BLockSetValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BLockSetValue.ProtoReflect.Descriptor instead.
 func (*BLockSetValue) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{20}
+	return file_Message_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *BLockSetValue) GetPid() []uint32 {
@@ -1147,7 +1218,7 @@ type BLockSetValidation struct {
 
 func (x *BLockSetValidation) Reset() {
 	*x = BLockSetValidation{}
-	mi := &file_Message_proto_msgTypes[21]
+	mi := &file_Message_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1159,7 +1230,7 @@ func (x *BLockSetValidation) String() string {
 func (*BLockSetValidation) ProtoMessage() {}
 
 func (x *BLockSetValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[21]
+	mi := &file_Message_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1172,7 +1243,7 @@ func (x *BLockSetValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BLockSetValidation.ProtoReflect.Descriptor instead.
 func (*BLockSetValidation) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{21}
+	return file_Message_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *BLockSetValidation) GetSig() [][]byte {
@@ -1225,7 +1296,12 @@ const file_Message_proto_rawDesc = "" +
 	"\vMVBA_Result\x12\x14\n" +
 	"\x05shard\x18\x01 \x01(\rR\x05shard\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\rR\x05epoch\x12\x16\n" +
-	"\x06result\x18\x03 \x01(\fR\x06result\"=\n" +
+	"\x06result\x18\x03 \x01(\fR\x06result\"~\n" +
+	"\x0eCTX_Distribute\x12\x14\n" +
+	"\x05epoch\x18\x01 \x01(\rR\x05epoch\x12!\n" +
+	"\ftarget_shard\x18\x02 \x01(\rR\vtargetShard\x12!\n" +
+	"\fsource_shard\x18\x03 \x01(\rR\vsourceShard\x12\x10\n" +
+	"\x03txs\x18\x04 \x03(\tR\x03txs\"=\n" +
 	"\x05Value\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\fR\x05value\x12\x1e\n" +
 	"\n" +
@@ -1271,7 +1347,7 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_Message_proto_goTypes = []any{
 	(*Message)(nil),            // 0: protobuf.Message
 	(*HS_New_View)(nil),        // 1: protobuf.HS_New_View
@@ -1285,16 +1361,17 @@ var file_Message_proto_goTypes = []any{
 	(*RBC_Ready)(nil),          // 9: protobuf.RBC_Ready
 	(*RBC_Bitmap)(nil),         // 10: protobuf.RBC_Bitmap
 	(*MVBA_Result)(nil),        // 11: protobuf.MVBA_Result
-	(*Value)(nil),              // 12: protobuf.Value
-	(*Echo)(nil),               // 13: protobuf.Echo
-	(*Lock)(nil),               // 14: protobuf.Lock
-	(*Finish)(nil),             // 15: protobuf.Finish
-	(*Done)(nil),               // 16: protobuf.Done
-	(*Halt)(nil),               // 17: protobuf.Halt
-	(*PreVote)(nil),            // 18: protobuf.PreVote
-	(*Vote)(nil),               // 19: protobuf.Vote
-	(*BLockSetValue)(nil),      // 20: protobuf.BLockSetValue
-	(*BLockSetValidation)(nil), // 21: protobuf.BLockSetValidation
+	(*CTX_Distribute)(nil),     // 12: protobuf.CTX_Distribute
+	(*Value)(nil),              // 13: protobuf.Value
+	(*Echo)(nil),               // 14: protobuf.Echo
+	(*Lock)(nil),               // 15: protobuf.Lock
+	(*Finish)(nil),             // 16: protobuf.Finish
+	(*Done)(nil),               // 17: protobuf.Done
+	(*Halt)(nil),               // 18: protobuf.Halt
+	(*PreVote)(nil),            // 19: protobuf.PreVote
+	(*Vote)(nil),               // 20: protobuf.Vote
+	(*BLockSetValue)(nil),      // 21: protobuf.BLockSetValue
+	(*BLockSetValidation)(nil), // 22: protobuf.BLockSetValidation
 }
 var file_Message_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -1315,7 +1392,7 @@ func file_Message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: []byte(file_Message_proto_rawDesc),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

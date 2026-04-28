@@ -26,3 +26,8 @@ Start all nodes via shell script:
 ``` bash
 ./start_all.sh min_PID max_PID mode start_time
 ```
+
+To get performance metrics:
+``` bash
+go run cmd/performance/performanceCal.go
+```

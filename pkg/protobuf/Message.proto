@@ -71,6 +71,16 @@ message MVBA_Result{
   bytes result = 3;
 }
 
+// Cross-shard: producer worker shard distributes a batch of cross-shard txs
+// to nodes in another input shard so that shard can include them in its RBC
+// for the same epoch.
+message CTX_Distribute{
+  uint32 epoch = 1;
+  uint32 target_shard = 2;
+  uint32 source_shard = 3;
+  repeated string txs = 4;
+}
+
 // Provable Broadcast (PB) messages
 message Value {
   bytes value = 1;
