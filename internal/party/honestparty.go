@@ -1,9 +1,9 @@
 package party
 
 import (
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/topology"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/topology"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -133,7 +133,7 @@ func (p *HonestParty) InitSendChannel() error {
 		return err
 	}
 	if p.Debug == true {
-		dirname = fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
+		dirname = fmt.Sprintf(homeDir+"/Areopagus/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
 		os.Mkdir(dirname, 0755)
 	}
 	for i := uint32(0); i < p.TotalNodes(); i++ {

@@ -1,8 +1,8 @@
 package core
 
 import (
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/utils"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/utils"
 	"fmt"
 	"io"
 	"log"

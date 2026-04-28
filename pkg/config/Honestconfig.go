@@ -1,7 +1,7 @@
 package config
 
 import (
-	"Chamael/pkg/topology"
+	"Areopagus/pkg/topology"
 	"encoding/base64"
 	"fmt"
 	"go.dedis.ch/kyber/v3/pairing"

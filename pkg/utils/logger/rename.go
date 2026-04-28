@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"Chamael/internal/party"
-	"Chamael/pkg/config"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/config"
 )
 
 func RenameCommon(c config.CommonConfig, p party.CommonParty, path string) {

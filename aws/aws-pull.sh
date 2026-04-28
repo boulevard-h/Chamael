@@ -23,18 +23,18 @@ while [ $i -le $(( N-1 )) ]; do
     (
     echo "[➤] 开始处理服务器 ${pubIPsVar[i]}"
 
-    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" ubuntu@${pubIPsVar[i]} '
+    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Areopagus.pem" ubuntu@${pubIPsVar[i]} '
         set -e
-        cd /home/ubuntu/Chamael
+        cd /home/ubuntu/Areopagus
 
         echo "[1/3] git pull"
         git pull --ff-only
 
         echo "[2/3] warm up cmd/main/main.go build cache"
-        go run ./cmd/main/main.go /tmp/chamael-cache-warmup-missing.yaml 0 "2099-01-01 00:00:00.000" >/tmp/chamael-main-warmup.log 2>&1 || true
+        go run ./cmd/main/main.go /tmp/areopagus-cache-warmup-missing.yaml 0 "2099-01-01 00:00:00.000" >/tmp/areopagus-main-warmup.log 2>&1 || true
 
         echo "[3/3] warm up cmd/txsMaker/txsMaker.go build cache"
-        go run ./cmd/txsMaker/txsMaker.go >/tmp/chamael-txsmaker-warmup.log 2>&1 || true
+        go run ./cmd/txsMaker/txsMaker.go >/tmp/areopagus-txsmaker-warmup.log 2>&1 || true
     '
 
     status=$?

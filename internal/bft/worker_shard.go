@@ -1,10 +1,10 @@
 package bft
 
 import (
-	"Chamael/internal/party"
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/txs"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/txs"
 	"fmt"
 	"log"
 	"sync"

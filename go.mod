@@ -1,4 +1,4 @@
-module Chamael
+module Areopagus
 
 go 1.18
 

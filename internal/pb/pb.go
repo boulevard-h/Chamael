@@ -6,9 +6,9 @@ import (
 	"log"
 	"sync"
 
-	"Chamael/internal/party"
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
 
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	"go.dedis.ch/kyber/v3/sign/tbls"

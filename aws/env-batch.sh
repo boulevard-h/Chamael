@@ -5,8 +5,8 @@ sudo apt update
 sudo apt install -y golang
 
 cd /home/ubuntu
-git clone https://github.com/hidden-er/Chamael.git
-cd Chamael
+git clone https://github.com/hidden-er/Areopagus.git
+cd Areopagus
 git checkout aegis-fix-dev
 #go env -w GOPROXY=https://goproxy.cn,direct
 go mod tidy

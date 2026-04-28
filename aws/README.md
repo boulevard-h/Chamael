@@ -10,7 +10,7 @@ sudo apt install dos2unix
 dos2unix env-batch.sh
 chmod 777 env-batch.sh
 ./env-batch.sh
-#测试Chamael运行情况（go编译）
+#测试Areopagus运行情况（go编译）
 #关机存映像，用该映像重启服务器，存模版
 ```
 
@@ -22,7 +22,7 @@ chmod 777 env-batch.sh
 
 **本地windows**：装有`aws-cli`，完成`aws configure`配置，python有`boto3`；
 
-**远程Chamael中控**：环境配置同节点服务器，额外在根目录放置私钥（权限400）
+**远程Areopagus中控**：环境配置同节点服务器，额外在根目录放置私钥（权限400）
 
 
 
@@ -30,7 +30,7 @@ chmod 777 env-batch.sh
 
 #### （1）启动各个区域的AWS服务器
 
-推荐在各个区域创建好支持Chamael运行环境的服务器模版，直接从模版创建实例。
+推荐在各个区域创建好支持Areopagus运行环境的服务器模版，直接从模版创建实例。
 
 #### （2）部署配置文件
 
@@ -55,23 +55,23 @@ chmod 777 env-batch.sh
 
 * 将生成的 YAML 配置替换到 `config_local.yaml`；将 Bash 头部变量块替换到 `aws-pre.sh`、`aws-run.sh`、`aws-pull.sh`、`aws-log.sh` 和 `aws-kill.sh` 顶部对应位置。
 
-* 将这些脚本上传到**Chamael中控的/home/ubuntu目录下**；将`config_local.yaml`上传到**Chamael中控的/home/ubuntu/Chamael/cmd/main目录下**。
+* 将这些脚本上传到**Areopagus中控的/home/ubuntu目录下**；将`config_local.yaml`上传到**Areopagus中控的/home/ubuntu/Areopagus/cmd/main目录下**。
 
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
+* 在**Areopagus中控的/home/ubuntu/Areopagus目录下**运行
 
   ```shell
   #刚需
   go run ./cmd/configMaker/configMaker.go -config_path ./cmd/main/config_local.yaml
   ```
 
-* 在**Chamael中控的/home/ubuntu目录下**运行	
+* 在**Areopagus中控的/home/ubuntu目录下**运行	
 
   ```shell
   dos2unix aws-log.sh aws-pre.sh aws-run.sh aws-pull.sh aws-kill.sh
   ./aws-pre.sh
   ```
 
-​	向各个节点服务器的**Chamael/configs/\* **传入**一致的**配置文件。
+​	向各个节点服务器的**Areopagus/configs/\* **传入**一致的**配置文件。
 
 #### （3）运行与获取日志数据
 
@@ -85,9 +85,9 @@ chmod 777 env-batch.sh
 
 ​	只需要调整这句命令里的0/1(分别对应有无debug日志)和起始运行时间即可。
 
-* 在**Chamael中控的/home/ubuntu目录下**运行`./aws-run.sh`，完成之后运行`./aws-log.sh`
+* 在**Areopagus中控的/home/ubuntu目录下**运行`./aws-run.sh`，完成之后运行`./aws-log.sh`
 
-* 在**Chamael中控的/home/ubuntu/Chamael目录下**运行
+* 在**Areopagus中控的/home/ubuntu/Areopagus目录下**运行
 
   ```shell
   go run ./cmd/performance/performanceCal.go

@@ -433,7 +433,7 @@ func main() {
 		return
 	}
 
-	stats, err := AccumulateTPSStats(homeDir + "/Chamael/log/")
+	stats, err := AccumulateTPSStats(homeDir + "/Areopagus/log/")
 	if err != nil {
 		fmt.Println("Error accumulating stats:", err)
 	} else {

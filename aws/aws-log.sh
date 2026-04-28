@@ -20,11 +20,11 @@ pubIPsVar=(
 # 递归收集日志（保留目录结构）
 i=0
 while [ $i -le $(( N-1 )) ]; do
-    scp -r -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" \
-        ubuntu@${pubIPsVar[i]}:"/home/ubuntu/Chamael/log/*" \
-        /home/ubuntu/Chamael/log/ &
+    scp -r -o "StrictHostKeyChecking no" -i "/home/ubuntu/Areopagus.pem" \
+        ubuntu@${pubIPsVar[i]}:"/home/ubuntu/Areopagus/log/*" \
+        /home/ubuntu/Areopagus/log/ &
     i=$((i+1))
 done
 
 wait
-echo "所有日志已合并到: /home/ubuntu/Chamael/log"
+echo "所有日志已合并到: /home/ubuntu/Areopagus/log"

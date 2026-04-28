@@ -1,8 +1,8 @@
 package core
 
 import (
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/utils"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/utils"
 	"fmt"
 	"io"
 	"log"
@@ -40,7 +40,7 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 	go func() {
 		if Debug == true {
 			homeDir, _ := os.UserHomeDir()
-			filename := fmt.Sprintf("%s/Chamael/log/(Received)%s.log", homeDir, lis.Addr())
+			filename := fmt.Sprintf("%s/Areopagus/log/(Received)%s.log", homeDir, lis.Addr())
 			file, _ := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 			fileLogger = log.New(file, "[MessageLogger] ", log.Ldate|log.Ltime|log.Lmicroseconds)
 		}

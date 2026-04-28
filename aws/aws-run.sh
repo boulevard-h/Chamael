@@ -24,8 +24,8 @@ while [ $i -le $(( N-1 )) ]; do
     node_count=${nodeCountsVar[i]}
     start_node=$offset
     end_node=$(( offset + node_count - 1 ))
-    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" ubuntu@${pubIPsVar[i]} \
-    "cd Chamael && rm -rf /home/ubuntu/Chamael/log/* 2>/dev/null; 
+    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Areopagus.pem" ubuntu@${pubIPsVar[i]} \
+    "cd Areopagus && rm -rf /home/ubuntu/Areopagus/log/* 2>/dev/null; 
      nohup ./start_all.sh ${start_node} ${end_node} 0 \"2025-03-30 03:08:00.000\" > server-$i.out" &
     offset=$(( offset + node_count ))
     i=$(( i+1 ))

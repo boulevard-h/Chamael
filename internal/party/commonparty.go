@@ -1,9 +1,9 @@
 package party
 
 import (
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/topology"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/topology"
 	"errors"
 	"fmt"
 	"os"
@@ -67,7 +67,7 @@ func (p *CommonParty) InitSendChannel() error {
 		return err
 	}
 
-	dirname := fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
+	dirname := fmt.Sprintf(homeDir+"/Areopagus/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
 	os.Mkdir(dirname, 0755)
 	for i := uint32(0); i < p.TotalNodes(); i++ {
 		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i], dirname, p.Debug)

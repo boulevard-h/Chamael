@@ -1,7 +1,7 @@
 package core
 
 import (
-	"Chamael/pkg/protobuf"
+	"Areopagus/pkg/protobuf"
 	"fmt"
 	"log"
 

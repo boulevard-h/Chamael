@@ -6,8 +6,8 @@ import (
 	"log"
 	"sync"
 
-	"Chamael/internal/party"
-	"Chamael/internal/pb"
+	"Areopagus/internal/party"
+	"Areopagus/internal/pb"
 
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	"go.dedis.ch/kyber/v3/sign/bls"

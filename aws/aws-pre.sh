@@ -29,9 +29,9 @@ while [ $i -le $(( N-1 )) ]; do
 
     # 上传该服务器需要的配置文件
     for (( j=start_node; j<=end_node; j++ )); do
-        scp -q -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" \
-            "/home/ubuntu/Chamael/configs/config_${j}.yaml" \
-            ubuntu@${pubIPsVar[i]}:/home/ubuntu/Chamael/configs/
+        scp -q -o "StrictHostKeyChecking no" -i "/home/ubuntu/Areopagus.pem" \
+            "/home/ubuntu/Areopagus/configs/config_${j}.yaml" \
+            ubuntu@${pubIPsVar[i]}:/home/ubuntu/Areopagus/configs/
     done
     
     echo "[✓] 完成服务器 ${pubIPsVar[i]}"

@@ -1,7 +1,7 @@
 package config
 
 import (
-	"Chamael/pkg/topology"
+	"Areopagus/pkg/topology"
 	"fmt"
 )
 

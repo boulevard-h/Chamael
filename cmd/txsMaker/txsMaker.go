@@ -1,8 +1,8 @@
 package main
 
 import (
-	"Chamael/pkg/txs"
-	"Chamael/pkg/utils/db"
+	"Areopagus/pkg/txs"
+	"Areopagus/pkg/utils/db"
 	"flag"
 	"fmt"
 	"log"
@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	dbPath := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(*id) + ".db"
+	dbPath := homeDir + "/Areopagus/db/cross_txs_node" + strconv.Itoa(*id) + ".db"
 	if err := db.SaveTxsToSQL(Txs, dbPath); err != nil {
 		log.Printf("failed to save cross-shard transactions to %s: %v", dbPath, err)
 		return

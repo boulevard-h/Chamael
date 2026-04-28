@@ -1,13 +1,13 @@
 package main
 
 import (
-	"Chamael/internal/bft"
-	"Chamael/internal/party"
-	"Chamael/pkg/config"
-	"Chamael/pkg/core"
-	"Chamael/pkg/txs"
-	"Chamael/pkg/utils/db"
-	"Chamael/pkg/utils/logger"
+	"Areopagus/internal/bft"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/config"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/txs"
+	"Areopagus/pkg/utils/db"
+	"Areopagus/pkg/utils/logger"
 	"time"
 
 	"encoding/base64"
@@ -119,14 +119,14 @@ func main() {
 			Txs = append(Txs, tx)
 		}
 
-		itxdb := fmt.Sprintf(homeDir+"/Chamael/db/inter_txs_node%d.db", p.PID)
+		itxdb := fmt.Sprintf(homeDir+"/Areopagus/db/inter_txs_node%d.db", p.PID)
 		if err := db.SaveTxsToSQL(Txs, itxdb); err != nil {
 			log.Printf("failed to save inner-shard transactions to %s: %v", itxdb, err)
 		} else {
 			fmt.Println("Inner-Shard Transactions saved to SQLite database.")
 		}
 
-		ctxdb := homeDir + "/Chamael/db/cross_txs_node" + strconv.Itoa(int(p.PID)) + ".db"
+		ctxdb := homeDir + "/Areopagus/db/cross_txs_node" + strconv.Itoa(int(p.PID)) + ".db"
 
 		// Pre-load some transactions per epoch.
 		for e := 1; e <= c.TestEpochs; e++ {
@@ -169,9 +169,9 @@ func main() {
 	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
 	bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitEpoch)
-	logger.CalculateTPS(c, p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
+	logger.CalculateTPS(c, p, homeDir+"/Areopagus/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
 	if p.Debug {
-		logger.RenameHonest(c, p, homeDir+"/Chamael/log/")
+		logger.RenameHonest(c, p, homeDir+"/Areopagus/log/")
 	}
 	// Grace period before exit so cross-node TCP sends can drain.
 	if c.WaitBuf > 0 {

@@ -1,6 +1,6 @@
 package party
 
-import "Chamael/pkg/topology"
+import "Areopagus/pkg/topology"
 
 func localShardParams(mainN, workN, mainF, workF, shard uint32) (uint32, uint32) {
 	if shard == 0 {

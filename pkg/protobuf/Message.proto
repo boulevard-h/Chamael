@@ -12,7 +12,7 @@ message Message {
 }
 
 
-// Chamael intra-shard consensus messages.
+// Areopagus intra-shard consensus messages.
 // 为防止混淆，不同共识协议的 protobuf 消息名统一加前缀：HS / RBC。
 
 // HotStuff (2-phase) messages

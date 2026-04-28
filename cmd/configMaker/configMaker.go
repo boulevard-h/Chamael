@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Chamael/pkg/config"
+	"Areopagus/pkg/config"
 	"flag"
 	"log"
 )

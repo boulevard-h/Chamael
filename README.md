@@ -1,23 +1,16 @@
-# Chamael
+# Areopagus
 
-Chamael includes:
-
-- Go implementation of Kronos
+Go implementation of Areopagus
 
 **Note**: plz place the project directory in the **user's home directory**.
 
 if run failed, you need to run pkill:
 
 ``` bash
-pkill -f "go_file_name"
+pkill -f main
 ```
 
-go_file_name = main
-
-
-## 1. Go implementation of Kronos
-
-Chamael runs locally (one node = one process).
+Areopagus runs locally (one node = one process).
 
 Install dependencies:
 ``` bash

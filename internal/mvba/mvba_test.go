@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"Chamael/internal/party"
+	"Areopagus/internal/party"
 
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	"go.dedis.ch/kyber/v3/share"

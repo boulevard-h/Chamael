@@ -11,7 +11,7 @@ mode="$2"
 print_perf="$3"
 start_time="$4"
 # Directory containing the config files
-config_dir="$HOME/Chamael/configs"
+config_dir="$HOME/Areopagus/configs"
 config_file="$config_dir/config_$id.yaml"
 
 # Check if the config file exists

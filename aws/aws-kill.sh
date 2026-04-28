@@ -20,7 +20,7 @@ pubIPsVar=(
 # kill 所有远程机器上名为 main 的进程
 i=0
 while [ $i -le $(( N-1 )) ]; do
-    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Chamael.pem" ubuntu@${pubIPsVar[i]} \
+    ssh -o "StrictHostKeyChecking no" -i "/home/ubuntu/Areopagus.pem" ubuntu@${pubIPsVar[i]} \
     "pkill -f './main' 2>/dev/null; echo 'killed main on ${pubIPsVar[i]}'" &
     i=$(( i+1 ))
 done

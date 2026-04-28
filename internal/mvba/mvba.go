@@ -7,10 +7,10 @@ import (
 	"log"
 	"sync"
 
-	"Chamael/internal/party"
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/utils"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
+	"Areopagus/pkg/utils"
 
 	"github.com/pkg/errors"
 	"go.dedis.ch/kyber/v3/pairing/bn256"

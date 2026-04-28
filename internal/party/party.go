@@ -1,6 +1,6 @@
 package party
 
-import "Chamael/pkg/protobuf"
+import "Areopagus/pkg/protobuf"
 
 // Party is a interface of consensus parties
 type Party interface {

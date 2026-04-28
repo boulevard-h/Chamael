@@ -3,7 +3,7 @@ package bft
 import (
 	"fmt"
 
-	"Chamael/internal/party"
+	"Areopagus/internal/party"
 )
 
 const ansiReset = "\x1b[0m"

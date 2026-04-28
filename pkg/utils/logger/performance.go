@@ -1,11 +1,11 @@
 package logger
 
 import (
-	"Chamael/internal/bft"
-	"Chamael/internal/party"
-	"Chamael/pkg/config"
-	"Chamael/pkg/core"
-	"Chamael/pkg/txs"
+	"Areopagus/internal/bft"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/config"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/txs"
 	"fmt"
 	"os"
 	"strings"

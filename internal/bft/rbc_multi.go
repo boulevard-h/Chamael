@@ -1,9 +1,9 @@
 package bft
 
 import (
-	"Chamael/internal/party"
-	"Chamael/pkg/core"
-	"Chamael/pkg/protobuf"
+	"Areopagus/internal/party"
+	"Areopagus/pkg/core"
+	"Areopagus/pkg/protobuf"
 	"context"
 	"sort"
 	"time"

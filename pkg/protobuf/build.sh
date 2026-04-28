@@ -1,4 +1,4 @@
-PROTO_DIR="$HOME/Chamael/pkg/protobuf"
+PROTO_DIR="$HOME/Areopagus/pkg/protobuf"
 
 protoc --proto_path="$PROTO_DIR" \
     --go_out="$PROTO_DIR" --go_opt=paths=source_relative \
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-pb = Path.home() / "Chamael" / "pkg" / "protobuf" / "Message.pb.go"
+pb = Path.home() / "Areopagus" / "pkg" / "protobuf" / "Message.pb.go"
 src = pb.read_text(encoding="utf-8")
 
 src = src.replace(
