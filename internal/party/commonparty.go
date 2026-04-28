@@ -19,15 +19,15 @@ type CommonParty struct {
 	WorkF             uint32
 	N                 uint32
 	F                 uint32
-	m                 uint32 //分片个数
+	m                 uint32 // shard count
 	PID               uint32
-	Snumber           uint32 //节点所在的分片编号
-	SID               uint32 //节点在分片内的编号
+	Snumber           uint32 // shard ID of this node
+	SID               uint32 // node ID within the shard
 	ipList            []string
 	portList          []string
 	sendChannels      []chan *protobuf.Message
 	dispatcheChannels *sync.Map
-	ShardList         []int //节点负责沟通的分片
+	ShardList         []int // shards this node communicates with
 	Debug             bool
 }
 
@@ -41,10 +41,10 @@ func NewCommonParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m ui
 		WorkF:        workF,
 		N:            localN,
 		F:            localF,
-		m:            m, //分片个数
+		m:            m, // shard count
 		PID:          pid,
-		Snumber:      snum, //节点所在的分片编号
-		SID:          sid,  //节点在分片内的编号
+		Snumber:      snum, // shard ID of this node
+		SID:          sid,  // node ID within the shard
 		ipList:       ipList,
 		portList:     portList,
 		sendChannels: make([]chan *protobuf.Message, topology.TotalNodes(int(mainN), int(workN), int(m))),

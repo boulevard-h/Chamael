@@ -88,303 +88,6 @@ func (x *Message) GetData() []byte {
 	return nil
 }
 
-// HotStuff (2-phase) messages
-type HS_New_View struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	None          []byte                 `protobuf:"bytes,1,opt,name=none,proto3" json:"none,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_New_View) Reset() {
-	*x = HS_New_View{}
-	mi := &file_Message_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_New_View) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_New_View) ProtoMessage() {}
-
-func (x *HS_New_View) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_New_View.ProtoReflect.Descriptor instead.
-func (*HS_New_View) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *HS_New_View) GetNone() []byte {
-	if x != nil {
-		return x.None
-	}
-	return nil
-}
-
-type HS_Prepare struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Txs           []string               `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_Prepare) Reset() {
-	*x = HS_Prepare{}
-	mi := &file_Message_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_Prepare) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_Prepare) ProtoMessage() {}
-
-func (x *HS_Prepare) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_Prepare.ProtoReflect.Descriptor instead.
-func (*HS_Prepare) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *HS_Prepare) GetTxs() []string {
-	if x != nil {
-		return x.Txs
-	}
-	return nil
-}
-
-type HS_Prepare_Vote struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Vote          uint32                 `protobuf:"varint,1,opt,name=vote,proto3" json:"vote,omitempty"`
-	Sig           []byte                 `protobuf:"bytes,2,opt,name=sig,proto3" json:"sig,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_Prepare_Vote) Reset() {
-	*x = HS_Prepare_Vote{}
-	mi := &file_Message_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_Prepare_Vote) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_Prepare_Vote) ProtoMessage() {}
-
-func (x *HS_Prepare_Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_Prepare_Vote.ProtoReflect.Descriptor instead.
-func (*HS_Prepare_Vote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *HS_Prepare_Vote) GetVote() uint32 {
-	if x != nil {
-		return x.Vote
-	}
-	return 0
-}
-
-func (x *HS_Prepare_Vote) GetSig() []byte {
-	if x != nil {
-		return x.Sig
-	}
-	return nil
-}
-
-type HS_Precommit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Aggsig        []byte                 `protobuf:"bytes,1,opt,name=aggsig,proto3" json:"aggsig,omitempty"`
-	Aggpk         []byte                 `protobuf:"bytes,2,opt,name=aggpk,proto3" json:"aggpk,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_Precommit) Reset() {
-	*x = HS_Precommit{}
-	mi := &file_Message_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_Precommit) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_Precommit) ProtoMessage() {}
-
-func (x *HS_Precommit) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_Precommit.ProtoReflect.Descriptor instead.
-func (*HS_Precommit) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *HS_Precommit) GetAggsig() []byte {
-	if x != nil {
-		return x.Aggsig
-	}
-	return nil
-}
-
-func (x *HS_Precommit) GetAggpk() []byte {
-	if x != nil {
-		return x.Aggpk
-	}
-	return nil
-}
-
-type HS_Precommit_Vote struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Vote          uint32                 `protobuf:"varint,1,opt,name=vote,proto3" json:"vote,omitempty"`
-	Sig           []byte                 `protobuf:"bytes,2,opt,name=sig,proto3" json:"sig,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_Precommit_Vote) Reset() {
-	*x = HS_Precommit_Vote{}
-	mi := &file_Message_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_Precommit_Vote) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_Precommit_Vote) ProtoMessage() {}
-
-func (x *HS_Precommit_Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_Precommit_Vote.ProtoReflect.Descriptor instead.
-func (*HS_Precommit_Vote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *HS_Precommit_Vote) GetVote() uint32 {
-	if x != nil {
-		return x.Vote
-	}
-	return 0
-}
-
-func (x *HS_Precommit_Vote) GetSig() []byte {
-	if x != nil {
-		return x.Sig
-	}
-	return nil
-}
-
-type HS_Commit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Aggsig        []byte                 `protobuf:"bytes,1,opt,name=aggsig,proto3" json:"aggsig,omitempty"`
-	Aggpk         []byte                 `protobuf:"bytes,2,opt,name=aggpk,proto3" json:"aggpk,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HS_Commit) Reset() {
-	*x = HS_Commit{}
-	mi := &file_Message_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HS_Commit) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HS_Commit) ProtoMessage() {}
-
-func (x *HS_Commit) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HS_Commit.ProtoReflect.Descriptor instead.
-func (*HS_Commit) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *HS_Commit) GetAggsig() []byte {
-	if x != nil {
-		return x.Aggsig
-	}
-	return nil
-}
-
-func (x *HS_Commit) GetAggpk() []byte {
-	if x != nil {
-		return x.Aggpk
-	}
-	return nil
-}
-
 // RBC messages
 type RBC_Propose struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -395,7 +98,7 @@ type RBC_Propose struct {
 
 func (x *RBC_Propose) Reset() {
 	*x = RBC_Propose{}
-	mi := &file_Message_proto_msgTypes[7]
+	mi := &file_Message_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +110,7 @@ func (x *RBC_Propose) String() string {
 func (*RBC_Propose) ProtoMessage() {}
 
 func (x *RBC_Propose) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[7]
+	mi := &file_Message_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +123,7 @@ func (x *RBC_Propose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RBC_Propose.ProtoReflect.Descriptor instead.
 func (*RBC_Propose) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{7}
+	return file_Message_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RBC_Propose) GetTxs() []string {
@@ -439,7 +142,7 @@ type RBC_Echo struct {
 
 func (x *RBC_Echo) Reset() {
 	*x = RBC_Echo{}
-	mi := &file_Message_proto_msgTypes[8]
+	mi := &file_Message_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +154,7 @@ func (x *RBC_Echo) String() string {
 func (*RBC_Echo) ProtoMessage() {}
 
 func (x *RBC_Echo) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[8]
+	mi := &file_Message_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,7 +167,7 @@ func (x *RBC_Echo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RBC_Echo.ProtoReflect.Descriptor instead.
 func (*RBC_Echo) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{8}
+	return file_Message_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RBC_Echo) GetTxs() []string {
@@ -484,7 +187,7 @@ type RBC_Ready struct {
 
 func (x *RBC_Ready) Reset() {
 	*x = RBC_Ready{}
-	mi := &file_Message_proto_msgTypes[9]
+	mi := &file_Message_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +199,7 @@ func (x *RBC_Ready) String() string {
 func (*RBC_Ready) ProtoMessage() {}
 
 func (x *RBC_Ready) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[9]
+	mi := &file_Message_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +212,7 @@ func (x *RBC_Ready) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RBC_Ready.ProtoReflect.Descriptor instead.
 func (*RBC_Ready) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{9}
+	return file_Message_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RBC_Ready) GetH() []byte {
@@ -542,7 +245,7 @@ type RBC_Bitmap struct {
 
 func (x *RBC_Bitmap) Reset() {
 	*x = RBC_Bitmap{}
-	mi := &file_Message_proto_msgTypes[10]
+	mi := &file_Message_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -554,7 +257,7 @@ func (x *RBC_Bitmap) String() string {
 func (*RBC_Bitmap) ProtoMessage() {}
 
 func (x *RBC_Bitmap) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[10]
+	mi := &file_Message_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -567,7 +270,7 @@ func (x *RBC_Bitmap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RBC_Bitmap.ProtoReflect.Descriptor instead.
 func (*RBC_Bitmap) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{10}
+	return file_Message_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RBC_Bitmap) GetShard() uint32 {
@@ -610,7 +313,7 @@ type MVBA_Result struct {
 
 func (x *MVBA_Result) Reset() {
 	*x = MVBA_Result{}
-	mi := &file_Message_proto_msgTypes[11]
+	mi := &file_Message_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +325,7 @@ func (x *MVBA_Result) String() string {
 func (*MVBA_Result) ProtoMessage() {}
 
 func (x *MVBA_Result) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[11]
+	mi := &file_Message_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +338,7 @@ func (x *MVBA_Result) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MVBA_Result.ProtoReflect.Descriptor instead.
 func (*MVBA_Result) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{11}
+	return file_Message_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MVBA_Result) GetShard() uint32 {
@@ -674,7 +377,7 @@ type CTX_Distribute struct {
 
 func (x *CTX_Distribute) Reset() {
 	*x = CTX_Distribute{}
-	mi := &file_Message_proto_msgTypes[12]
+	mi := &file_Message_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -686,7 +389,7 @@ func (x *CTX_Distribute) String() string {
 func (*CTX_Distribute) ProtoMessage() {}
 
 func (x *CTX_Distribute) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[12]
+	mi := &file_Message_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -699,7 +402,7 @@ func (x *CTX_Distribute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CTX_Distribute.ProtoReflect.Descriptor instead.
 func (*CTX_Distribute) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{12}
+	return file_Message_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CTX_Distribute) GetEpoch() uint32 {
@@ -741,7 +444,7 @@ type Value struct {
 
 func (x *Value) Reset() {
 	*x = Value{}
-	mi := &file_Message_proto_msgTypes[13]
+	mi := &file_Message_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -753,7 +456,7 @@ func (x *Value) String() string {
 func (*Value) ProtoMessage() {}
 
 func (x *Value) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[13]
+	mi := &file_Message_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,7 +469,7 @@ func (x *Value) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Value.ProtoReflect.Descriptor instead.
 func (*Value) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{13}
+	return file_Message_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Value) GetValue() []byte {
@@ -792,7 +495,7 @@ type Echo struct {
 
 func (x *Echo) Reset() {
 	*x = Echo{}
-	mi := &file_Message_proto_msgTypes[14]
+	mi := &file_Message_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +507,7 @@ func (x *Echo) String() string {
 func (*Echo) ProtoMessage() {}
 
 func (x *Echo) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[14]
+	mi := &file_Message_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,7 +520,7 @@ func (x *Echo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Echo.ProtoReflect.Descriptor instead.
 func (*Echo) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{14}
+	return file_Message_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Echo) GetSigshare() []byte {
@@ -838,7 +541,7 @@ type Lock struct {
 
 func (x *Lock) Reset() {
 	*x = Lock{}
-	mi := &file_Message_proto_msgTypes[15]
+	mi := &file_Message_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +553,7 @@ func (x *Lock) String() string {
 func (*Lock) ProtoMessage() {}
 
 func (x *Lock) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[15]
+	mi := &file_Message_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +566,7 @@ func (x *Lock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lock.ProtoReflect.Descriptor instead.
 func (*Lock) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{15}
+	return file_Message_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Lock) GetValue() []byte {
@@ -890,7 +593,7 @@ type Finish struct {
 
 func (x *Finish) Reset() {
 	*x = Finish{}
-	mi := &file_Message_proto_msgTypes[16]
+	mi := &file_Message_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -902,7 +605,7 @@ func (x *Finish) String() string {
 func (*Finish) ProtoMessage() {}
 
 func (x *Finish) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[16]
+	mi := &file_Message_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +618,7 @@ func (x *Finish) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Finish.ProtoReflect.Descriptor instead.
 func (*Finish) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{16}
+	return file_Message_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Finish) GetValue() []byte {
@@ -941,7 +644,7 @@ type Done struct {
 
 func (x *Done) Reset() {
 	*x = Done{}
-	mi := &file_Message_proto_msgTypes[17]
+	mi := &file_Message_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -953,7 +656,7 @@ func (x *Done) String() string {
 func (*Done) ProtoMessage() {}
 
 func (x *Done) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[17]
+	mi := &file_Message_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -966,7 +669,7 @@ func (x *Done) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Done.ProtoReflect.Descriptor instead.
 func (*Done) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{17}
+	return file_Message_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Done) GetCoinShare() []byte {
@@ -986,7 +689,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_Message_proto_msgTypes[18]
+	mi := &file_Message_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +701,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[18]
+	mi := &file_Message_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1011,7 +714,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{18}
+	return file_Message_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Halt) GetValue() []byte {
@@ -1039,7 +742,7 @@ type PreVote struct {
 
 func (x *PreVote) Reset() {
 	*x = PreVote{}
-	mi := &file_Message_proto_msgTypes[19]
+	mi := &file_Message_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +754,7 @@ func (x *PreVote) String() string {
 func (*PreVote) ProtoMessage() {}
 
 func (x *PreVote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[19]
+	mi := &file_Message_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +767,7 @@ func (x *PreVote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreVote.ProtoReflect.Descriptor instead.
 func (*PreVote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{19}
+	return file_Message_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PreVote) GetVote() bool {
@@ -1100,7 +803,7 @@ type Vote struct {
 
 func (x *Vote) Reset() {
 	*x = Vote{}
-	mi := &file_Message_proto_msgTypes[20]
+	mi := &file_Message_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1112,7 +815,7 @@ func (x *Vote) String() string {
 func (*Vote) ProtoMessage() {}
 
 func (x *Vote) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[20]
+	mi := &file_Message_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1125,7 +828,7 @@ func (x *Vote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vote.ProtoReflect.Descriptor instead.
 func (*Vote) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{20}
+	return file_Message_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Vote) GetVote() bool {
@@ -1167,7 +870,7 @@ type BLockSetValue struct {
 
 func (x *BLockSetValue) Reset() {
 	*x = BLockSetValue{}
-	mi := &file_Message_proto_msgTypes[21]
+	mi := &file_Message_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +882,7 @@ func (x *BLockSetValue) String() string {
 func (*BLockSetValue) ProtoMessage() {}
 
 func (x *BLockSetValue) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[21]
+	mi := &file_Message_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +895,7 @@ func (x *BLockSetValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BLockSetValue.ProtoReflect.Descriptor instead.
 func (*BLockSetValue) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{21}
+	return file_Message_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BLockSetValue) GetPid() []uint32 {
@@ -1218,7 +921,7 @@ type BLockSetValidation struct {
 
 func (x *BLockSetValidation) Reset() {
 	*x = BLockSetValidation{}
-	mi := &file_Message_proto_msgTypes[22]
+	mi := &file_Message_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1230,7 +933,7 @@ func (x *BLockSetValidation) String() string {
 func (*BLockSetValidation) ProtoMessage() {}
 
 func (x *BLockSetValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_Message_proto_msgTypes[22]
+	mi := &file_Message_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1243,7 +946,7 @@ func (x *BLockSetValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BLockSetValidation.ProtoReflect.Descriptor instead.
 func (*BLockSetValidation) Descriptor() ([]byte, []int) {
-	return file_Message_proto_rawDescGZIP(), []int{22}
+	return file_Message_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BLockSetValidation) GetSig() [][]byte {
@@ -1262,24 +965,7 @@ const file_Message_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\fR\x02id\x12\x16\n" +
 	"\x06sender\x18\x03 \x01(\rR\x06sender\x12\x12\n" +
-	"\x04data\x18\x04 \x01(\fR\x04data\"!\n" +
-	"\vHS_New_View\x12\x12\n" +
-	"\x04none\x18\x01 \x01(\fR\x04none\"\x1e\n" +
-	"\n" +
-	"HS_Prepare\x12\x10\n" +
-	"\x03txs\x18\x01 \x03(\tR\x03txs\"7\n" +
-	"\x0fHS_Prepare_Vote\x12\x12\n" +
-	"\x04vote\x18\x01 \x01(\rR\x04vote\x12\x10\n" +
-	"\x03sig\x18\x02 \x01(\fR\x03sig\"<\n" +
-	"\fHS_Precommit\x12\x16\n" +
-	"\x06aggsig\x18\x01 \x01(\fR\x06aggsig\x12\x14\n" +
-	"\x05aggpk\x18\x02 \x01(\fR\x05aggpk\"9\n" +
-	"\x11HS_Precommit_Vote\x12\x12\n" +
-	"\x04vote\x18\x01 \x01(\rR\x04vote\x12\x10\n" +
-	"\x03sig\x18\x02 \x01(\fR\x03sig\"9\n" +
-	"\tHS_Commit\x12\x16\n" +
-	"\x06aggsig\x18\x01 \x01(\fR\x06aggsig\x12\x14\n" +
-	"\x05aggpk\x18\x02 \x01(\fR\x05aggpk\"\x1f\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"\x1f\n" +
 	"\vRBC_Propose\x12\x10\n" +
 	"\x03txs\x18\x01 \x03(\tR\x03txs\"\x1c\n" +
 	"\bRBC_Echo\x12\x10\n" +
@@ -1347,31 +1033,25 @@ func file_Message_proto_rawDescGZIP() []byte {
 	return file_Message_proto_rawDescData
 }
 
-var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_Message_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_Message_proto_goTypes = []any{
 	(*Message)(nil),            // 0: protobuf.Message
-	(*HS_New_View)(nil),        // 1: protobuf.HS_New_View
-	(*HS_Prepare)(nil),         // 2: protobuf.HS_Prepare
-	(*HS_Prepare_Vote)(nil),    // 3: protobuf.HS_Prepare_Vote
-	(*HS_Precommit)(nil),       // 4: protobuf.HS_Precommit
-	(*HS_Precommit_Vote)(nil),  // 5: protobuf.HS_Precommit_Vote
-	(*HS_Commit)(nil),          // 6: protobuf.HS_Commit
-	(*RBC_Propose)(nil),        // 7: protobuf.RBC_Propose
-	(*RBC_Echo)(nil),           // 8: protobuf.RBC_Echo
-	(*RBC_Ready)(nil),          // 9: protobuf.RBC_Ready
-	(*RBC_Bitmap)(nil),         // 10: protobuf.RBC_Bitmap
-	(*MVBA_Result)(nil),        // 11: protobuf.MVBA_Result
-	(*CTX_Distribute)(nil),     // 12: protobuf.CTX_Distribute
-	(*Value)(nil),              // 13: protobuf.Value
-	(*Echo)(nil),               // 14: protobuf.Echo
-	(*Lock)(nil),               // 15: protobuf.Lock
-	(*Finish)(nil),             // 16: protobuf.Finish
-	(*Done)(nil),               // 17: protobuf.Done
-	(*Halt)(nil),               // 18: protobuf.Halt
-	(*PreVote)(nil),            // 19: protobuf.PreVote
-	(*Vote)(nil),               // 20: protobuf.Vote
-	(*BLockSetValue)(nil),      // 21: protobuf.BLockSetValue
-	(*BLockSetValidation)(nil), // 22: protobuf.BLockSetValidation
+	(*RBC_Propose)(nil),        // 1: protobuf.RBC_Propose
+	(*RBC_Echo)(nil),           // 2: protobuf.RBC_Echo
+	(*RBC_Ready)(nil),          // 3: protobuf.RBC_Ready
+	(*RBC_Bitmap)(nil),         // 4: protobuf.RBC_Bitmap
+	(*MVBA_Result)(nil),        // 5: protobuf.MVBA_Result
+	(*CTX_Distribute)(nil),     // 6: protobuf.CTX_Distribute
+	(*Value)(nil),              // 7: protobuf.Value
+	(*Echo)(nil),               // 8: protobuf.Echo
+	(*Lock)(nil),               // 9: protobuf.Lock
+	(*Finish)(nil),             // 10: protobuf.Finish
+	(*Done)(nil),               // 11: protobuf.Done
+	(*Halt)(nil),               // 12: protobuf.Halt
+	(*PreVote)(nil),            // 13: protobuf.PreVote
+	(*Vote)(nil),               // 14: protobuf.Vote
+	(*BLockSetValue)(nil),      // 15: protobuf.BLockSetValue
+	(*BLockSetValidation)(nil), // 16: protobuf.BLockSetValidation
 }
 var file_Message_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -1392,7 +1072,7 @@ func file_Message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: []byte(file_Message_proto_rawDesc),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

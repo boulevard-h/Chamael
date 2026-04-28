@@ -137,26 +137,21 @@ func main() {
 		}
 	}
 	//loadDuration := time.Since(loadStartTime)
-	//fmt.Printf("从数据库加载交易耗时: %.2f ms\n", float64(loadDuration.Nanoseconds())/1e6)
+	//fmt.Printf("Loaded transactions from the database in %.2f ms\n", float64(loadDuration.Nanoseconds())/1e6)
 
-	//go bft.HotStuffProcess(p, c.TestEpochs, itx_inputChannel, outputChannel)
-	/*for i := 1; i <= c.TestEpochs; i++ {
-		bft.HotStuffProcess(p, i, itx_inputChannel, outputChannel)
-	}*/
-
-	// 从命令行参数获取启动时间字符串（格式：2006-01-02 15:04:05.000）
+	// Read the start-time string from command-line arguments. Format: 2006-01-02 15:04:05.000.
 	if len(os.Args) < 4 {
 		log.Fatalln("Please input the start time:2006-01-02 15:04:05.000")
 	}
 	startTimeStr := os.Args[3]
 
-	// 解析启动时间
+	// Parse the start time.
 	startTime, err := time.ParseInLocation("2006-01-02 15:04:05.000", startTimeStr, time.Local)
 	if err != nil {
 		log.Fatalln("Time format error:", err)
 	}
 
-	// 等待直到指定时间
+	// Wait until the specified start time.
 	now := time.Now()
 	if startTime.After(now) {
 		waitDuration := startTime.Sub(now)
@@ -168,7 +163,7 @@ func main() {
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
 	//timeChannel <- time.Now()
-	bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitEpoch)
+	bft.AreopagusProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitEpoch)
 	logger.CalculateTPS(c, p, homeDir+"/Areopagus/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
 	if p.Debug {
 		logger.RenameHonest(c, p, homeDir+"/Areopagus/log/")

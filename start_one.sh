@@ -17,15 +17,15 @@ config_file="$config_dir/config_$id.yaml"
 # Check if the config file exists
 if [ -f "$config_file" ]; then
     echo "Using config file: $config_file"
-    
+
     # Read Txnum and Crate parameters from config file and calculate tx_num
     Txnum=$(grep '^Txnum:' "$config_file" | awk '{print $2}')
     Crate=$(grep '^Crate:' "$config_file" | awk '{print $2}')
     TestEpochs=$(grep '^TestEpochs:' "$config_file" | awk '{print $2}')
     tx_num=$(echo "$Txnum * $Crate * $TestEpochs" | bc -l)
     tx_num=$(printf "%.0f" "$tx_num")
-    
-    # 从 config 读取参数 m
+
+    # Read the m parameter from the config.
     m=$(grep '^m:' "$config_file" | awk '{print $2}')
     echo "Cross-shard tx_num: $tx_num"
 

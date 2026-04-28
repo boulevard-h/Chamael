@@ -8,18 +8,18 @@ import (
 	"go.dedis.ch/kyber/v3/pairing"
 )
 
-// MapToSlice 将 map 转换为 2 维切片，确保结果大小为 M
+// MapToSlice converts a map to a 2D slice with size M.
 func MapToSlice(data map[int][]string, M int) [][]string {
-	// 初始化结果切片，预分配空间为 M
+	// Initialize the result slice with capacity M.
 	result := make([][]string, 0, M)
 
-	// 遍历 0 到 M-1
+	// Iterate from 0 to M-1.
 	for i := 0; i < M; i++ {
 		if v, exists := data[i]; exists {
-			// 如果键存在，添加对应的值
+			// Append the value when the key exists.
 			result = append(result, v)
 		} else {
-			// 如果键不存在，添加一个空的字符串切片
+			// Append an empty string slice when the key is missing.
 			result = append(result, []string{})
 		}
 	}

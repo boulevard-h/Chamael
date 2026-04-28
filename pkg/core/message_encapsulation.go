@@ -42,43 +42,6 @@ func Decapsulation(messageType string, m *protobuf.Message) (any, error) {
 
 func marshalPayload(messageType string, payloadMessage any) ([]byte, error) {
 	switch messageType {
-	case "HS_New_View":
-		payload, ok := payloadMessage.(*protobuf.HS_New_View)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-	case "HS_Prepare":
-		payload, ok := payloadMessage.(*protobuf.HS_Prepare)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-	case "HS_Prepare_Vote":
-		payload, ok := payloadMessage.(*protobuf.HS_Prepare_Vote)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-	case "HS_Precommit":
-		payload, ok := payloadMessage.(*protobuf.HS_Precommit)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-	case "HS_Precommit_Vote":
-		payload, ok := payloadMessage.(*protobuf.HS_Precommit_Vote)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-	case "HS_Commit":
-		payload, ok := payloadMessage.(*protobuf.HS_Commit)
-		if !ok {
-			return nil, fmt.Errorf("payload type mismatch for %q: got %T", messageType, payloadMessage)
-		}
-		return proto.Marshal(payload)
-
 	case "RBC_Propose":
 		payload, ok := payloadMessage.(*protobuf.RBC_Propose)
 		if !ok {
@@ -172,18 +135,6 @@ func marshalPayload(messageType string, payloadMessage any) ([]byte, error) {
 
 func newPayloadMessage(messageType string) (proto.Message, error) {
 	switch messageType {
-	case "HS_New_View":
-		return &protobuf.HS_New_View{}, nil
-	case "HS_Prepare":
-		return &protobuf.HS_Prepare{}, nil
-	case "HS_Prepare_Vote":
-		return &protobuf.HS_Prepare_Vote{}, nil
-	case "HS_Precommit":
-		return &protobuf.HS_Precommit{}, nil
-	case "HS_Precommit_Vote":
-		return &protobuf.HS_Precommit_Vote{}, nil
-	case "HS_Commit":
-		return &protobuf.HS_Commit{}, nil
 	case "RBC_Propose":
 		return &protobuf.RBC_Propose{}, nil
 	case "RBC_Echo":

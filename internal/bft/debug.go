@@ -36,4 +36,3 @@ func Debugf(p *party.HonestParty, format string, args ...any) {
 	prefix := fmt.Sprintf("%s[shard %d node %d]%s ", color, p.Snumber, p.PID, ansiReset)
 	fmt.Printf(prefix+format+"\n", args...)
 }
-

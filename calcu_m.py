@@ -3,21 +3,21 @@ from scipy.stats import hypergeom
 
 def shard_corruption_prob(N_total, F, S, corruption_threshold):
     """
-    计算单个分片的腐化概率
-    :param N_total: 总节点数
-    :param F: 恶意节点比例上限(0 < F < 1/3)
-    :param S: 分片数
-    :param corruption_threshold: 腐化阈值比例(如2/3)
-    :return: 分片腐化概率
+    Compute the corruption probability for one shard.
+    :param N_total: total number of nodes
+    :param F: upper bound on the Byzantine-node ratio (0 < F < 1/3)
+    :param S: number of shards
+    :param corruption_threshold: corruption threshold ratio, such as 2/3
+    :return: shard corruption probability
     """
-    n_shard = N_total // S  # 分片大小
-    M = math.floor(F * N_total)  # 总恶意节点数
-    
-    # 计算腐化节点数下限
+    n_shard = N_total // S  # shard size
+    M = math.floor(F * N_total)  # total number of Byzantine nodes
+
+    # Lower bound on the number of corrupted nodes.
     x_min = math.ceil(n_shard * corruption_threshold)
     x_max = min(n_shard, M)
-    
-    # 超几何分布概率求和
+
+    # Sum hypergeometric probabilities.
     prob = 0.0
     for x in range(x_min, x_max + 1):
         prob += hypergeom.pmf(x, N_total, M, n_shard)
@@ -28,39 +28,39 @@ def calcu_system_failure_prob(shard_fail_prob, shard_num):
     system_failure_prob_tailor = shard_num * shard_fail_prob
     return system_failure_prob, system_failure_prob_tailor
 
-# 参数示例
-N = 2000    # 总节点数
-F = 1/4     # 恶意节点比例上限
-f = 1/3     # 片内容错
+# Example parameters.
+N = 2000    # total number of nodes
+F = 1/4     # upper bound on the Byzantine-node ratio
+f = 1/3     # intra-shard fault tolerance
 
 max_system_fail_prob = 1/3
 
 max_S = 0
 
 for S in range(1,N):
-    print(f"\n总节点数：{N}, 分片数: {S}, 片内容错：{f:.2f}, 分片大小：{N//S}")
+    print(f"\nTotal nodes: {N}, shards: {S}, intra-shard fault tolerance: {f:.2f}, shard size: {N//S}")
 
-    # 计算单个分片被完全腐化的概率
+    # Compute the probability that one shard is corrupted.
     p_failure = shard_corruption_prob(N, F, S, f)
-    print(f"单个分片失效概率：{p_failure:e}")
+    print(f"Single-shard failure probability: {p_failure:e}")
 
-    # 计算系统存在分片被腐化的概率（直接和泰勒近似两种）
+    # Compute the probability that at least one shard is corrupted, both exactly and with Taylor approximation.
     system_failure_prob, system_failure_prob_tailor = calcu_system_failure_prob(p_failure, S)
-    print(f"系统失效概率(非近似): {system_failure_prob:e}, 系统失效概率(泰勒近似): {system_failure_prob_tailor:e}")
+    print(f"System failure probability (exact): {system_failure_prob:e}, system failure probability (Taylor approximation): {system_failure_prob_tailor:e}")
 
     if system_failure_prob > max_system_fail_prob and system_failure_prob_tailor > max_system_fail_prob:
         max_S = S
         break
 
 
-# 计算此时的 S 对应的 2/3 片内容错失败概率
-f = 2/3     # 片内容错
-print(f"\n总节点数：{N}, 分片数: {max_S}, 片内容错：{f:.2f}, 分片大小：{N//max_S}")
+# Compute the 2/3 intra-shard fault-tolerance failure probability for this S.
+f = 2/3     # intra-shard fault tolerance
+print(f"\nTotal nodes: {N}, shards: {max_S}, intra-shard fault tolerance: {f:.2f}, shard size: {N//max_S}")
 
-# 计算单个分片被完全腐化的概率
+# Compute the probability that one shard is corrupted.
 p_failure = shard_corruption_prob(N, F, max_S, f)
-print(f"单个分片失效概率：{p_failure:e}")
+print(f"Single-shard failure probability: {p_failure:e}")
 
-# 计算系统存在分片被腐化的概率（直接和泰勒近似两种）
+# Compute the probability that at least one shard is corrupted, both exactly and with Taylor approximation.
 system_failure_prob, system_failure_prob_tailor = calcu_system_failure_prob(p_failure, max_S)
-print(f"系统失效概率(非近似): {system_failure_prob:e}, 系统失效概率(泰勒近似): {system_failure_prob_tailor:e}")
+print(f"System failure probability (exact): {system_failure_prob:e}, system failure probability (Taylor approximation): {system_failure_prob_tailor:e}")

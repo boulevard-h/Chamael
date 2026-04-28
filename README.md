@@ -2,7 +2,7 @@
 
 Go implementation of Areopagus
 
-**Note**: plz place the project directory in the **user's home directory**.
+**Note**: place the project directory at `$HOME/Areopagus`.
 
 if run failed, you need to run pkill:
 

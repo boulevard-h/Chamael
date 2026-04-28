@@ -62,9 +62,9 @@ func (a timingMetricAccumulator) Average() float64 {
 	return a.weightedSum / float64(a.count)
 }
 
-// 累加 performance 文件中的汇总指标和时序拆分指标
+// AccumulateTPSStats aggregates summary metrics and timing breakdowns from performance files.
 func AccumulateTPSStats(dir string) (accumulatedStats, error) {
-	// 正则表达式用于匹配文件中的数据
+	// Regular expressions for matching data in performance files.
 	totalTxReg := regexp.MustCompile(`Total Transactions:\s*(\d+)`)
 	internalTxReg := regexp.MustCompile(`Internal Transactions:\s*(\d+)`)
 	crossShardTxReg := regexp.MustCompile(`Cross-Shard Transactions:\s*(\d+)`)
@@ -100,7 +100,7 @@ func AccumulateTPSStats(dir string) (accumulatedStats, error) {
 	mainFirstBitmapToBroadcastMaxReg := regexp.MustCompile(`Main FirstBitmap->Broadcast Max:\s*([\d\.]+)\s*ms`)
 
 	var stats accumulatedStats
-	var workerFileCount int // 用于计算延迟平均值
+	var workerFileCount int // Used to compute latency averages.
 	var workerRBCToBitmap timingMetricAccumulator
 	var workerBitmapRoundTrip timingMetricAccumulator
 	var workerEpochToResult timingMetricAccumulator
@@ -109,13 +109,13 @@ func AccumulateTPSStats(dir string) (accumulatedStats, error) {
 	var mainResultBroadcast timingMetricAccumulator
 	var mainFirstBitmapToBroadcast timingMetricAccumulator
 
-	// 遍历目录下的所有文件
+	// Walk all files in the directory.
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// 只处理以 (Performance) 开头的文件
+		// Only process files whose names start with (Performance).
 		if strings.HasPrefix(info.Name(), "(Performance)") {
 			file, err := os.Open(path)
 			if err != nil {
@@ -145,12 +145,12 @@ func AccumulateTPSStats(dir string) (accumulatedStats, error) {
 			var fileMainFirstBitmapToBroadcastCount int
 			var fileMainFirstBitmapToBroadcastAvg float64
 			var fileMainFirstBitmapToBroadcastMax float64
-			// 逐行读取文件
+			// Read the file line by line.
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
 				line := scanner.Text()
 
-				// 匹配每一项并累加
+				// Match each metric and accumulate it.
 				if matches := totalTxReg.FindStringSubmatch(line); matches != nil {
 					total, err := strconv.Atoi(matches[1])
 					if err == nil {
@@ -401,7 +401,7 @@ func AccumulateTPSStats(dir string) (accumulatedStats, error) {
 		return accumulatedStats{}, err
 	}
 
-	// 计算平均值
+	// Compute averages.
 	if workerFileCount > 0 {
 		stats.BlockDelay /= float64(workerFileCount)
 		stats.RoundDelay /= float64(workerFileCount)

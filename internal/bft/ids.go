@@ -9,4 +9,3 @@ func mvbaResultID(shard uint32, epoch uint32) []byte {
 	binary.BigEndian.PutUint32(id[4:8], epoch)
 	return id
 }
-

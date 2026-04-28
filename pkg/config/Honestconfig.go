@@ -21,11 +21,11 @@ type HonestConfig struct {
 	N int `yaml:"N,omitempty"` // legacy: equal-size shard node count
 	F int `yaml:"F,omitempty"` // legacy: equal-size shard fault bound
 
-	NMain int `yaml:"N_M"`           //主链节点数
-	NWork int `yaml:"N_W"`           //工作分片节点数
-	FMain int `yaml:"F_M,omitempty"` //主链恶意节点数
-	FWork int `yaml:"F_W,omitempty"` //工作分片恶意节点数
-	M     int `yaml:"m"`             //分片个数（含主链）
+	NMain int `yaml:"N_M"`           // main-chain node count
+	NWork int `yaml:"N_W"`           // worker-shard node count
+	FMain int `yaml:"F_M,omitempty"` // main-chain Byzantine node count
+	FWork int `yaml:"F_W,omitempty"` // worker-shard Byzantine node count
+	M     int `yaml:"m"`             // shard count, including the main chain
 
 	IPList   []string `yaml:"IPList"`
 	PortList []string `yaml:"PortList"`
@@ -34,9 +34,9 @@ type HonestConfig struct {
 	// judge if execute read config function before
 	// default is false in golang structure declare
 	isRead    bool
-	PID       int      `yaml:"PID"`  //节点在整体中的编号
-	Snumber   int      `yaml:"Snum"` //节点所在的分片编号
-	SID       int      `yaml:"SID"`  //节点在分片内的编号
+	PID       int      `yaml:"PID"`  // node ID in the whole system
+	Snumber   int      `yaml:"Snum"` // shard ID of this node
+	SID       int      `yaml:"SID"`  // node ID within the shard
 	Statistic string   `yaml:"Statistic"`
 	PK        []string `yaml:"PK"`
 	SK        string   `yaml:"SK"`

@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// 注册类型到 gob
+// Register the type with gob.
 func init() {
 	gob.Register(&implContent{})
 }
@@ -65,7 +65,7 @@ func NewMerkleTree(data [][]string) (*MerkleTree, error) {
 func (t *MerkleTree) GetMerkleTreeRoot() []byte {
 	if t == nil {
 		fmt.Println("Warning: Merkle tree is nil")
-		return nil // 返回 nil 或者一个默认值
+		return nil // Return nil or a default value.
 	}
 	return t.mktree.MerkleRoot()
 }
@@ -74,7 +74,7 @@ func (t *MerkleTree) GetMerkleTreeRoot() []byte {
 func (t *MerkleTree) GetMerkleTreeProof(id int) ([][]byte, []int64) {
 	if t == nil {
 		fmt.Println("Waring: Merkle tree is nil")
-		return nil, nil // 返回空值，表示失败
+		return nil, nil // Return empty values to signal failure.
 	}
 	if id < 0 || id >= len(t.contents) {
 		fmt.Printf("Error: Invalid ID %d, must be within [0, %d)\n", id, len(t.contents))

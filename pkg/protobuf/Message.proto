@@ -13,31 +13,7 @@ message Message {
 
 
 // Areopagus intra-shard consensus messages.
-// 为防止混淆，不同共识协议的 protobuf 消息名统一加前缀：HS / RBC。
-
-// HotStuff (2-phase) messages
-message HS_New_View{
-  bytes none = 1;
-}
-message HS_Prepare{
-  repeated string txs = 1;
-}
-message HS_Prepare_Vote{
-  uint32 vote = 1;
-  bytes sig = 2;
-}
-message HS_Precommit{
-  bytes aggsig = 1;
-  bytes aggpk = 2;
-}
-message HS_Precommit_Vote{
-  uint32 vote = 1;
-  bytes sig = 2;
-}
-message HS_Commit{
-  bytes aggsig = 1;
-  bytes aggpk = 2;
-}
+// Prefix protobuf message names by consensus protocol to avoid ambiguity.
 
 // RBC messages
 message RBC_Propose{

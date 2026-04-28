@@ -27,9 +27,9 @@ func isInternalTx(tx string) bool {
 	return true
 }
 
-func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, waitEpoch int) {
+func AreopagusProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []string, ctx_inputChannel chan []string, outputChannel chan []string, timeChannel chan time.Time, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, waitEpoch int) {
 	timeChannel <- time.Now()
-	deadlineAt := time.Now().Add(kronosTotalTimeout(uint32(epoch), waitEpoch))
+	deadlineAt := time.Now().Add(areopagusTotalTimeout(uint32(epoch), waitEpoch))
 
 	if p.Snumber == 0 {
 		mainShardProcess(p, uint32(epoch), waitEpoch)
@@ -45,7 +45,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 	for e := uint32(1); e <= uint32(epoch); e++ {
 		remaining := time.Until(deadlineAt)
 		if remaining <= 0 {
-			log.Printf("worker shard timeout before epoch start: shard=%d started=%d expected=%d timeout=%s", p.Snumber, startedEpochs, epoch, kronosTotalTimeout(uint32(epoch), waitEpoch))
+			log.Printf("worker shard timeout before epoch start: shard=%d started=%d expected=%d timeout=%s", p.Snumber, startedEpochs, epoch, areopagusTotalTimeout(uint32(epoch), waitEpoch))
 			break
 		}
 
@@ -99,7 +99,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 			log.Printf("worker shard timeout before RBC start: shard=%d epoch=%d", p.Snumber, e)
 			break
 		}
-		timeout := minDuration(kronosEpochTimeout(waitEpoch), rbcRemaining)
+		timeout := minDuration(areopagusEpochTimeout(waitEpoch), rbcRemaining)
 		txs_out := RBCMultiEpochDeliverWithBitmapBroadcast(p, e, txs_in, timeout)
 
 		// Do not block epoch progression on MVBA acks: wait asynchronously.
@@ -151,7 +151,7 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 
 	remaining := time.Until(deadlineAt)
 	if remaining <= 0 {
-		log.Printf("worker shard timeout waiting for MVBA completion: shard=%d completed=%d started=%d expected=%d timeout=%s", p.Snumber, atomic.LoadUint32(&completedEpochs), startedEpochs, epoch, kronosTotalTimeout(uint32(epoch), waitEpoch))
+		log.Printf("worker shard timeout waiting for MVBA completion: shard=%d completed=%d started=%d expected=%d timeout=%s", p.Snumber, atomic.LoadUint32(&completedEpochs), startedEpochs, epoch, areopagusTotalTimeout(uint32(epoch), waitEpoch))
 		return
 	}
 
@@ -161,11 +161,11 @@ func KronosProcess(p *party.HonestParty, epoch int, itx_inputChannel chan []stri
 	select {
 	case <-done:
 	case <-waitTimer.C:
-		log.Printf("worker shard timeout waiting for MVBA completion: shard=%d completed=%d started=%d expected=%d timeout=%s", p.Snumber, atomic.LoadUint32(&completedEpochs), startedEpochs, epoch, kronosTotalTimeout(uint32(epoch), waitEpoch))
+		log.Printf("worker shard timeout waiting for MVBA completion: shard=%d completed=%d started=%d expected=%d timeout=%s", p.Snumber, atomic.LoadUint32(&completedEpochs), startedEpochs, epoch, areopagusTotalTimeout(uint32(epoch), waitEpoch))
 	}
 }
 
-func kronosEpochTimeout(waitEpoch int) time.Duration {
+func areopagusEpochTimeout(waitEpoch int) time.Duration {
 	timeout := 5 * time.Second
 	if waitEpoch > 0 {
 		timeout = time.Second * time.Duration(waitEpoch)
@@ -173,8 +173,8 @@ func kronosEpochTimeout(waitEpoch int) time.Duration {
 	return timeout
 }
 
-func kronosTotalTimeout(maxEpoch uint32, waitEpoch int) time.Duration {
-	epochTimeout := kronosEpochTimeout(waitEpoch)
+func areopagusTotalTimeout(maxEpoch uint32, waitEpoch int) time.Duration {
+	epochTimeout := areopagusEpochTimeout(waitEpoch)
 	if maxEpoch == 0 {
 		return epochTimeout
 	}

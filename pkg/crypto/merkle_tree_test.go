@@ -23,10 +23,10 @@ func generateDummyMerkleTree() (*MerkleTree, error) {
 
 /*
 func validateMerkleTrees(t *testing.T, tree1 *m.MerkleTree, tree2 *m.MerkleTree) {
-	// 验证根节点是否一致
+	// Verify that root nodes match.
 	validateNodes(t, tree1.Root, tree2.Root)
 
-	// 验证叶子节点是否一致
+	// Verify that leaf nodes match.
 	if len(tree1.Leafs) != len(tree2.Leafs) {
 		t.Fatalf("Leaf count mismatch: got %d, want %d", len(tree2.Leafs), len(tree1.Leafs))
 	}
@@ -44,17 +44,17 @@ func validateNodes(t *testing.T, node1 *m.Node, node2 *m.Node) {
 		return
 	}
 
-	// 验证哈希值是否一致
+	// Verify that hashes match.
 	if !bytes.Equal(node1.Hash, node2.Hash) {
 		t.Errorf("Node hash mismatch: got %x, want %x", node2.Hash, node1.Hash)
 	}
 
-	// 验证子节点
+	// Verify child nodes.
 	validateNodes(t, node1.Left, node2.Left)
 	validateNodes(t, node1.Right, node2.Right)
 }
 
-//<Dummy TX: DXMEZ80U753ISQPWEIRBZSVZ2ALAU9H6, Userset: 0, Input Shard: [0], Input Valid: [1], Output Shard: 0, Output Valid: 1 >
+// <Dummy TX: DXMEZ80U753ISQPWEIRBZSVZ2ALAU9H6, Userset: 0, Input Shard: [0], Input Valid: [1], Output Shard: 0, Output Valid: 1 >
 func TestNewMerkleTree(t *testing.T) {
 	tre, err := generateDummyMerkleTree()
 	if err != nil {
@@ -116,26 +116,26 @@ func TestVerifyMerkleTreeProof(t *testing.T) {
 
 /*
 func TestMerkleTreeSerialization(t *testing.T) {
-	// 使用公共函数生成 Merkle Tree
+		// Generate a Merkle tree with the shared helper.
 	tre, err := generateDummyMerkleTree()
 	if err != nil {
 		t.Fatalf("Failed to generate Merkle Tree: %s", err.Error())
 	}
 
-	// 测试序列化
+		// Test serialization.
 	data, err := tre.Marshal()
 	if err != nil {
 		t.Fatalf("Failed to serialize Merkle Tree: %s", err.Error())
 	}
 
-	// 测试反序列化
+		// Test deserialization.
 	var newTree MerkleTree
 	err = newTree.Unmarshal(data)
 	if err != nil {
 		t.Fatalf("Failed to deserialize Merkle Tree: %s", err.Error())
 	}
 
-	// 验证 contents 数据是否一致
+		// Verify that contents data matches.
 	if len(tre.contents) != len(newTree.contents) {
 		t.Fatalf("Contents length mismatch: got %d, want %d", len(newTree.contents), len(tre.contents))
 	}
@@ -148,13 +148,13 @@ func TestMerkleTreeSerialization(t *testing.T) {
 			continue
 		}
 
-		// 比较内容长度
+			// Compare content length.
 		if len(origContent.x) != len(newContent.x) {
 			t.Errorf("Content length mismatch at index %d: got %d, want %d", i, len(newContent.x), len(origContent.x))
 			continue
 		}
 
-		// 比较具体内容
+			// Compare each content item.
 		for j := 0; j < len(origContent.x); j++ {
 			if origContent.x[j] != newContent.x[j] {
 				t.Errorf("Content mismatch at index %d, item %d: got %s, want %s", i, j, newContent.x[j], origContent.x[j])
@@ -162,6 +162,6 @@ func TestMerkleTreeSerialization(t *testing.T) {
 		}
 	}
 
-	// 验证 mktree 是否完全相同
+		// Verify that mktree is identical.
 	validateMerkleTrees(t, tre.mktree, newTree.mktree)
 }*/

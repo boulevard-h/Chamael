@@ -23,17 +23,17 @@ type HonestParty struct {
 	WorkN             uint32
 	MainF             uint32
 	WorkF             uint32
-	N                 uint32 // 当前节点所在分片的节点数
-	F                 uint32 // 当前节点所在分片的恶意节点数
-	M                 uint32 //分片个数
+	N                 uint32 // node count in this node's shard
+	F                 uint32 // Byzantine node count in this node's shard
+	M                 uint32 // shard count
 	PID               uint32
-	Snumber           uint32 //节点所在的分片编号
-	SID               uint32 //节点在分片内的编号
+	Snumber           uint32 // shard ID of this node
+	SID               uint32 // node ID within the shard
 	ipList            []string
 	portList          []string
 	sendChannels      []chan *protobuf.Message
 	dispatcheChannels *sync.Map
-	Acc               *big.Int // 交易累加器
+	Acc               *big.Int // transaction accumulator
 	Debug             bool
 
 	PK []kyber.Point
@@ -77,10 +77,10 @@ func NewHonestParty(mainN uint32, workN uint32, mainF uint32, workF uint32, m ui
 		WorkF:        workF,
 		N:            localN,
 		F:            localF,
-		M:            m, //分片个数
+		M:            m, // shard count
 		PID:          pid,
-		Snumber:      snum, //节点所在的分片编号
-		SID:          sid,  //节点在分片内的编号
+		Snumber:      snum, // shard ID of this node
+		SID:          sid,  // node ID within the shard
 		ipList:       ipList,
 		portList:     portList,
 		sendChannels: make([]chan *protobuf.Message, totalNodes),

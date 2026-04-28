@@ -26,7 +26,7 @@ func mainShardProcess(p *party.HonestParty, maxEpoch uint32, waitEpoch int) {
 
 	expected := int((p.M - 1) * maxEpoch)
 	thresholdNodes := 2*int(p.WorkF) + 1
-	totalTimeout := kronosTotalTimeout(maxEpoch, waitEpoch)
+	totalTimeout := areopagusTotalTimeout(maxEpoch, waitEpoch)
 	deadlineAt := time.Now().Add(totalTimeout)
 
 	mvbaWg := sync.WaitGroup{}

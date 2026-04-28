@@ -24,7 +24,7 @@ func SaveTxsToSQL(txs []string, filename string) error {
 	}
 	defer db.Close()
 
-	// 开启事务
+	// Start a transaction.
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction for %q failed: %w", filename, err)
@@ -50,7 +50,7 @@ func SaveTxsToSQL(txs []string, filename string) error {
 		return fmt.Errorf("clear transactions table in %q failed: %w", filename, err)
 	}
 
-	// 准备批量插入语句
+	// Prepare the batch insert statement.
 	insertSQL := `INSERT INTO transactions (tx) VALUES (?)`
 	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
@@ -59,7 +59,7 @@ func SaveTxsToSQL(txs []string, filename string) error {
 	}
 	defer stmt.Close()
 
-	// 批量插入数据
+	// Insert data in batches.
 	for _, txData := range txs {
 		_, err = stmt.Exec(txData)
 		if err != nil {
@@ -68,7 +68,7 @@ func SaveTxsToSQL(txs []string, filename string) error {
 		}
 	}
 
-	// 提交事务
+	// Commit the transaction.
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("commit transaction for %q failed: %w", filename, err)
@@ -83,7 +83,7 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 	}
 	defer db.Close()
 
-	// 设置一些性能优化参数
+	// Apply performance-related pragmas.
 	_, err = db.Exec("PRAGMA journal_mode = WAL")
 	if err != nil {
 		return nil, fmt.Errorf("failed to set WAL mode: %v", err)
@@ -93,13 +93,13 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 		return nil, fmt.Errorf("failed to set synchronous mode: %v", err)
 	}
 
-	// 开启事务
+	// Start a transaction.
 	tx, err := db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %v", err)
 	}
 
-	// 使用 LIMIT 限制返回的事务数量
+	// Limit the number of returned transactions.
 	rows, err := tx.Query("SELECT id, tx FROM transactions LIMIT ?", limit)
 	if err != nil {
 		tx.Rollback()
@@ -110,7 +110,7 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 	var txs []string
 	var txIDs []int
 
-	// 读取数据库中的事务
+	// Read transactions from the database.
 	for rows.Next() {
 		var id int
 		var txData string
@@ -127,9 +127,9 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 		return nil, fmt.Errorf("error iterating rows: %v", err)
 	}
 
-	// 批量删除已读取的事务
+	// Delete the transactions that were read.
 	if len(txIDs) > 0 {
-		// 分批处理删除操作，每批最多处理 500 个 ID
+		// Delete in batches of at most 500 IDs.
 		batchSize := 500
 		for i := 0; i < len(txIDs); i += batchSize {
 			end := i + batchSize
@@ -137,7 +137,7 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 				end = len(txIDs)
 			}
 
-			// 构建当前批次的 IN 查询参数
+			// Build IN-query arguments for the current batch.
 			placeholders := make([]string, end-i)
 			args := make([]interface{}, end-i)
 			for j := range placeholders {
@@ -154,7 +154,7 @@ func LoadAndDeleteTxsFromDB(dbPath string, limit int) ([]string, error) {
 		}
 	}
 
-	// 提交事务
+	// Commit the transaction.
 	err = tx.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
