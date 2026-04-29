@@ -2,7 +2,7 @@
 
 Go implementation of Areopagus.
 
-Areopagus is a sharded Byzantine fault-tolerant protocol implementation for
+Areopagus is a sharding blockchain consensus for
 local artifact evaluation. A local run starts one process per node and writes
 runtime logs under `$HOME/Areopagus/log/`.
 
