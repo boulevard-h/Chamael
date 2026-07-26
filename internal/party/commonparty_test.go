@@ -71,6 +71,22 @@ func TestCommonPartyWarmsSameShardPeersOnly(t *testing.T) {
 	}
 }
 
+func TestWarmupPeersIncludeScheduledCrossShardCoordinators(t *testing.T) {
+	peers := makeWarmupPeers(4, 3, 0, 0, 3)
+	want := map[uint32]bool{
+		1: true, 2: true, 3: true, // local shard
+		4: true, 6: true, 7: true, 8: true, 10: true, 11: true, // coordinators
+	}
+	if len(peers) != len(want) {
+		t.Fatalf("got peers %v, want %d unique peers", peers, len(want))
+	}
+	for _, peerID := range peers {
+		if !want[peerID] {
+			t.Fatalf("unexpected warmup peer %d in %v", peerID, peers)
+		}
+	}
+}
+
 func unusedPort(t *testing.T) string {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

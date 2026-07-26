@@ -93,7 +93,7 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		ps = append(ps, *party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, true))
+		ps = append(ps, *party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, true, uint32(c.TestEpochs)))
 	}
 
 	H := 10

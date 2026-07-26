@@ -28,7 +28,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug)
+	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug, uint32(c.TestEpochs))
 
 	// 读取 RC.yaml 文件
 	homeDir, err := os.UserHomeDir()

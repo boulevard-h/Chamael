@@ -22,6 +22,7 @@ type HonestParty struct {
 	PID               uint32
 	Snumber           uint32 //节点所在的分片编号
 	SID               uint32 //节点在分片内的编号
+	TestEpochs        uint32 //本次实验轮数，用于计算需要预热的跨片协调者
 	ipList            []string
 	portList          []string
 	transport         *core.TCPTransport
@@ -37,7 +38,7 @@ type HonestParty struct {
 	CrossShardTraffic float64 // 跨片通信量
 }
 
-func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool) *HonestParty {
+func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, pk []string, sk string, Debug bool, testEpochs ...uint32) *HonestParty {
 
 	//suite := bn256.NewSuite()
 	suite := pairing.NewSuiteBn256()
@@ -53,6 +54,11 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 		points[i].UnmarshalBinary(pkstr)
 	}
 
+	plannedEpochs := uint32(1)
+	if len(testEpochs) > 0 && testEpochs[0] > 0 {
+		plannedEpochs = testEpochs[0]
+	}
+
 	p := HonestParty{
 		N:                 N,
 		F:                 F,
@@ -60,6 +66,7 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 		PID:               pid,
 		Snumber:           snum, //节点所在的分片编号
 		SID:               sid,  //节点在分片内的编号
+		TestEpochs:        plannedEpochs,
 		ipList:            ipList,
 		portList:          portList,
 		PK:                points,
@@ -95,7 +102,7 @@ func (p *HonestParty) InitSendChannel() error {
 	if !p.checkInit() {
 		return errors.New("receive transport must be initialized before sending")
 	}
-	warmPeers := makePeerRange(p.Snumber*p.N, (p.Snumber+1)*p.N, p.PID)
+	warmPeers := makeWarmupPeers(p.N, p.M, p.PID, p.Snumber, p.TestEpochs)
 	if len(warmPeers) == 0 {
 		return nil
 	}
@@ -104,7 +111,7 @@ func (p *HonestParty) InitSendChannel() error {
 	if err := p.transport.Warmup(ctx, warmPeers); err != nil {
 		return err
 	}
-	log.Printf("node %d warmed %d same-shard TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
+	log.Printf("node %d warmed %d same-shard/scheduled-coordinator TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
 	return nil
 }
 
@@ -176,6 +183,42 @@ func makePeerRange(start, end, exclude uint32) []uint32 {
 	for peerID := start; peerID < end; peerID++ {
 		if peerID != exclude {
 			peers = append(peers, peerID)
+		}
+	}
+	return peers
+}
+
+// makeWarmupPeers returns peers that are guaranteed to participate in the
+// configured run: every node in the local shard and every shard's coordinator
+// for epochs [1, testEpochs]. Kronos rotates coordinators by
+// SID=(epoch+1)%N, so no more than N coordinator positions need warming.
+func makeWarmupPeers(n, shardCount, pid, shardNumber, testEpochs uint32) []uint32 {
+	if n == 0 || shardCount == 0 {
+		return nil
+	}
+	if testEpochs > n {
+		testEpochs = n
+	}
+	seen := make(map[uint32]struct{}, n+shardCount*testEpochs)
+	peers := make([]uint32, 0, n+shardCount*testEpochs)
+	add := func(peerID uint32) {
+		if peerID == pid {
+			return
+		}
+		if _, exists := seen[peerID]; exists {
+			return
+		}
+		seen[peerID] = struct{}{}
+		peers = append(peers, peerID)
+	}
+
+	for peerID := shardNumber * n; peerID < (shardNumber+1)*n; peerID++ {
+		add(peerID)
+	}
+	for epoch := uint32(1); epoch <= testEpochs; epoch++ {
+		coordinatorSID := (epoch + 1) % n
+		for shard := uint32(0); shard < shardCount; shard++ {
+			add(shard*n + coordinatorSID)
 		}
 	}
 	return peers
