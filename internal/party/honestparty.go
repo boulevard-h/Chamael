@@ -25,7 +25,7 @@ type HonestParty struct {
 	TestEpochs        uint32 //本次实验轮数，用于计算需要预热的跨片协调者
 	ipList            []string
 	portList          []string
-	transport         *core.TCPTransport
+	transport         core.Transport
 	dispatcheChannels *sync.Map
 	Acc               *big.Int // 交易累加器
 	Debug             bool
@@ -82,9 +82,9 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
 	if p.transport != nil {
-		return errors.New("TCP transport is already initialized")
+		return errors.New("transport is already initialized")
 	}
-	transport, err := core.NewPartyTCPTransport(p.PID, p.ipList, p.portList, p.Debug)
+	transport, err := core.NewPartyKitexTransport(p.PID, p.ipList, p.portList, p.Debug)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (p *HonestParty) InitSendChannel() error {
 	if err := p.transport.Warmup(ctx, warmPeers); err != nil {
 		return err
 	}
-	log.Printf("node %d warmed %d same-shard/scheduled-coordinator TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
+	log.Printf("node %d warmed %d same-shard/scheduled-coordinator Kitex peers; other peers remain on-demand", p.PID, len(warmPeers))
 	return nil
 }
 
@@ -238,7 +238,7 @@ func (p *HonestParty) checkInit() bool {
 	return p.transport != nil && p.dispatcheChannels != nil
 }
 
-// Close stops network IO and releases all active connections.
+// Close stops network IO and releases all active clients/connections.
 func (p *HonestParty) Close() error {
 	if p.transport == nil {
 		return nil

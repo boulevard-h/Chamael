@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	ErrTransportClosed = errors.New("tcp transport is closed")
+	ErrTransportClosed = errors.New("transport is closed")
 	ErrUnknownPeer     = errors.New("unknown peer")
 	ErrInvalidMessage  = errors.New("invalid message")
 )
@@ -86,18 +86,6 @@ type transportCounters struct {
 	receivedMessages uint64
 	sentBytes        uint64
 	receivedBytes    uint64
-}
-
-// TCPTransportStats is a point-in-time transport health snapshot.
-type TCPTransportStats struct {
-	ActiveConnections int
-	ActiveSenders     int
-	Dials             uint64
-	Reconnects        uint64
-	SentMessages      uint64
-	ReceivedMessages  uint64
-	SentBytes         uint64
-	ReceivedBytes     uint64
 }
 
 func NewTCPTransport(cfg TCPTransportConfig) (*TCPTransport, error) {

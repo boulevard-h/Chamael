@@ -20,7 +20,7 @@ type CommonParty struct {
 	SID               uint32 //节点在分片内的编号
 	ipList            []string
 	portList          []string
-	transport         *core.TCPTransport
+	transport         core.Transport
 	dispatcheChannels *sync.Map
 	ShardList         []int //节点负责沟通的分片
 	Debug             bool
@@ -46,9 +46,9 @@ func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *CommonParty) InitReceiveChannel() error {
 	if p.transport != nil {
-		return errors.New("TCP transport is already initialized")
+		return errors.New("transport is already initialized")
 	}
-	transport, err := core.NewPartyTCPTransport(p.PID, p.ipList, p.portList, p.Debug)
+	transport, err := core.NewPartyKitexTransport(p.PID, p.ipList, p.portList, p.Debug)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (p *CommonParty) InitSendChannel() error {
 	if err := p.transport.Warmup(ctx, warmPeers); err != nil {
 		return err
 	}
-	log.Printf("node %d warmed %d same-shard TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
+	log.Printf("node %d warmed %d same-shard Kitex peers; other peers remain on-demand", p.PID, len(warmPeers))
 	return nil
 }
 
@@ -141,7 +141,7 @@ func (p *CommonParty) checkInit() bool {
 	return p.transport != nil && p.dispatcheChannels != nil
 }
 
-// Close stops network IO and releases all active connections.
+// Close stops network IO and releases all active clients/connections.
 func (p *CommonParty) Close() error {
 	if p.transport == nil {
 		return nil

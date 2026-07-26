@@ -9,7 +9,7 @@ import (
 	"Chamael/pkg/protobuf"
 )
 
-func TestCommonPartyKeepsCrossShardPeerOnDemand(t *testing.T) {
+func TestCommonPartyKeepsCrossShardKitexPeerOnDemand(t *testing.T) {
 	ipList := []string{"127.0.0.1", "127.0.0.1"}
 	portList := []string{unusedPort(t), unusedPort(t)}
 	party0 := NewCommonParty(1, 0, 2, 0, 0, 0, ipList, portList, nil)
@@ -46,12 +46,20 @@ func TestCommonPartyKeepsCrossShardPeerOnDemand(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("party message was not dispatched")
 	}
-	if stats := party0.transport.Stats(); stats.Dials != 1 || stats.ActiveConnections == 0 {
-		t.Fatalf("cross-shard send did not connect on demand: %+v", stats)
+	deadline := time.Now().Add(time.Second)
+	for {
+		stats := party0.transport.Stats()
+		if stats.Dials == 1 && stats.ActiveConnections == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("cross-shard send did not connect on demand: %+v", stats)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
-func TestCommonPartyWarmsSameShardPeersOnly(t *testing.T) {
+func TestCommonPartyWarmsSameShardKitexPeersOnly(t *testing.T) {
 	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
 	portList := []string{unusedPort(t), unusedPort(t), unusedPort(t), unusedPort(t)}
 	party0 := NewCommonParty(2, 0, 2, 0, 0, 0, ipList, portList, nil)

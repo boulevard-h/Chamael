@@ -28,7 +28,7 @@ func main() {
 
 	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug, uint32(c.TestEpochs))
 	if err := p.InitReceiveChannel(); err != nil {
-		log.Fatalln("initialize TCP transport:", err)
+		log.Fatalln("initialize Kitex transport:", err)
 	}
 	defer p.Close()
 

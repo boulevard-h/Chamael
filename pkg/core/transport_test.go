@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"testing"
 	"time"
@@ -14,6 +16,9 @@ import (
 )
 
 func BenchmarkTCPTransportEndToEnd(b *testing.B) {
+	logOutput := log.Writer()
+	log.SetOutput(io.Discard)
+	b.Cleanup(func() { log.SetOutput(logOutput) })
 	for _, size := range []int{256, 64 << 10} {
 		for _, window := range []int{1, 128} {
 			b.Run(fmt.Sprintf("bytes=%d/window=%d", size, window), func(b *testing.B) {

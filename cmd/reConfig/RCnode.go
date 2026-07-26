@@ -42,7 +42,7 @@ func main() {
 	}
 
 	if err := p.InitReceiveChannel(); err != nil {
-		log.Fatalln("initialize TCP transport:", err)
+		log.Fatalln("initialize Kitex transport:", err)
 	}
 	defer p.Close()
 
