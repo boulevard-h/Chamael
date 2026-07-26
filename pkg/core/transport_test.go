@@ -95,6 +95,10 @@ func TestTCPTransportConnectsOnDemand(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("queued message was not delivered after the peer started")
 	}
+	stats := transport0.Stats()
+	if stats.SentBytes == 0 || stats.WireSentBytes <= stats.SentBytes {
+		t.Fatalf("TCP wire accounting did not include framing: %+v", stats)
+	}
 }
 
 func TestTCPTransportLocalDeliveryDoesNotDial(t *testing.T) {

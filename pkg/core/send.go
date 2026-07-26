@@ -123,6 +123,7 @@ func (s *peerSender) dial(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	s.transport.configureTCP(conn)
+	conn = newWireCountingConn(conn, &s.transport.stats)
 	s.transport.trackConn(conn)
 	if err := writeHandshake(conn, s.transport.cfg.NodeID, s.transport.cfg.DialTimeout); err != nil {
 		s.closeConn(conn)

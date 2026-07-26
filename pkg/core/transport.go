@@ -80,12 +80,14 @@ type TCPTransport struct {
 }
 
 type transportCounters struct {
-	dials            uint64
-	reconnects       uint64
-	sentMessages     uint64
-	receivedMessages uint64
-	sentBytes        uint64
-	receivedBytes    uint64
+	dials             uint64
+	reconnects        uint64
+	sentMessages      uint64
+	receivedMessages  uint64
+	sentBytes         uint64
+	receivedBytes     uint64
+	wireSentBytes     uint64
+	wireReceivedBytes uint64
 }
 
 func NewTCPTransport(cfg TCPTransportConfig) (*TCPTransport, error) {
@@ -200,6 +202,8 @@ func (t *TCPTransport) Stats() TCPTransportStats {
 		ReceivedMessages:  atomic.LoadUint64(&t.stats.receivedMessages),
 		SentBytes:         atomic.LoadUint64(&t.stats.sentBytes),
 		ReceivedBytes:     atomic.LoadUint64(&t.stats.receivedBytes),
+		WireSentBytes:     atomic.LoadUint64(&t.stats.wireSentBytes),
+		WireReceivedBytes: atomic.LoadUint64(&t.stats.wireReceivedBytes),
 	}
 }
 

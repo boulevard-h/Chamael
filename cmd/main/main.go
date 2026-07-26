@@ -6,6 +6,7 @@ import (
 	"Chamael/pkg/config"
 	"Chamael/pkg/txs"
 	"Chamael/pkg/utils/db"
+	"Chamael/pkg/utils/experiment"
 	"Chamael/pkg/utils/logger"
 	"time"
 
@@ -115,12 +116,17 @@ func main() {
 	block_delay_channel := make(chan time.Duration, 4096)
 	round_delay_channel := make(chan time.Duration, 4096)
 	extra_delay_channel := make(chan time.Duration, 4096)
-	//timeChannel <- time.Now()
-	go bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel, c.WaitTime)
 
-	// time.Sleep(time.Second * 15)
-	time.Sleep(time.Second * (time.Duration(c.WaitTime / 3)))
-	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
+	transportBefore := p.TransportStats()
+	memorySampler := experiment.StartMemorySampler(experiment.DefaultMemorySampleInterval)
+	bft.KronosProcess(p, c.TestEpochs, itx_inputChannel, ctx_inputChannel, outputChannel, timeChannel, block_delay_channel, round_delay_channel, extra_delay_channel)
+
+	// Allow asynchronous transport queues to drain after the protocol has
+	// finished. This wait is deliberately outside the protocol timestamps.
+	time.Sleep(time.Second * time.Duration(c.WaitTime/10))
+	memoryStats := memorySampler.Stop()
+	transportStats := p.TransportStats().Subtract(transportBefore)
+	logger.CalculateTPS(c, *p, homeDir+"/Chamael/log/", timeChannel, outputChannel, block_delay_channel, round_delay_channel, extra_delay_channel, transportStats, memoryStats)
 	if p.Debug {
 		logger.RenameHonest(c, *p, homeDir+"/Chamael/log/")
 	}

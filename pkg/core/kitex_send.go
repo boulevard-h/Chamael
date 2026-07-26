@@ -14,6 +14,7 @@ import (
 
 	kitexclient "github.com/cloudwego/kitex/client"
 	"github.com/cloudwego/kitex/client/callopt"
+	kitexremote "github.com/cloudwego/kitex/pkg/remote"
 	kitexgrpc "github.com/cloudwego/kitex/pkg/remote/trans/nphttp2/grpc"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/pkg/streaming"
@@ -64,6 +65,10 @@ func newKitexClientRuntime(t *KitexTransport) (*kitexClientRuntime, error) {
 		}),
 		kitexclient.WithTransportProtocol(kitextransport.GRPCStreaming),
 		kitexclient.WithConnectTimeout(t.cfg.ConnectTimeout),
+		kitexclient.WithDialer(&wireCountingDialer{
+			delegate: kitexremote.NewDefaultDialer(),
+			stats:    &t.stats,
+		}),
 		kitexclient.WithGRPCInitialWindowSize(defaultKitexGRPCWindow),
 		kitexclient.WithGRPCInitialConnWindowSize(defaultKitexGRPCWindow),
 		kitexclient.WithGRPCKeepaliveParams(kitexgrpc.ClientKeepalive{

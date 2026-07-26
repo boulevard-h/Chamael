@@ -100,6 +100,10 @@ func TestKitexTransportConnectsOnDemand(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("queued Kitex message was not delivered after peer startup")
 	}
+	stats := transport0.Stats()
+	if stats.SentBytes == 0 || stats.WireSentBytes <= stats.SentBytes {
+		t.Fatalf("Kitex wire accounting did not include framing: %+v", stats)
+	}
 }
 
 func TestKitexTransportLocalDeliveryDoesNotCreatePeerState(t *testing.T) {

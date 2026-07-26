@@ -265,6 +265,8 @@ func (t *KitexTransport) Stats() TransportStats {
 		ReceivedMessages:  atomic.LoadUint64(&t.stats.receivedMessages),
 		SentBytes:         atomic.LoadUint64(&t.stats.sentBytes),
 		ReceivedBytes:     atomic.LoadUint64(&t.stats.receivedBytes),
+		WireSentBytes:     atomic.LoadUint64(&t.stats.wireSentBytes),
+		WireReceivedBytes: atomic.LoadUint64(&t.stats.wireReceivedBytes),
 	}
 }
 
