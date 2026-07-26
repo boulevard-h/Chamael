@@ -14,7 +14,6 @@ const (
 	handshakeSize        = 12
 	handshakeReplySize   = 8
 	frameHeaderSize      = 4
-	frameACKSize         = 4
 	maxMessageTypeLength = 64
 	maxMessageIDLength   = 64
 )
@@ -22,7 +21,6 @@ const (
 var (
 	handshakeMagic      = [4]byte{'C', 'H', 'M', 'L'}
 	handshakeReplyMagic = [4]byte{'C', 'H', 'O', 'K'}
-	frameACKMagic       = [4]byte{'C', 'A', 'C', 'K'}
 )
 
 func writeHandshake(conn net.Conn, nodeID uint32, timeout time.Duration) error {
@@ -115,27 +113,6 @@ func readFrame(conn net.Conn, maxSize uint32, timeout time.Duration) ([]byte, er
 		return nil, err
 	}
 	return payload, nil
-}
-
-func writeFrameACK(conn net.Conn, timeout time.Duration) error {
-	if err := conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
-		return err
-	}
-	return writeFull(conn, frameACKMagic[:])
-}
-
-func readFrameACK(conn net.Conn, timeout time.Duration) error {
-	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
-		return err
-	}
-	ack := make([]byte, frameACKSize)
-	if _, err := io.ReadFull(conn, ack); err != nil {
-		return err
-	}
-	if string(ack) != string(frameACKMagic[:]) {
-		return errors.New("invalid frame acknowledgement")
-	}
-	return nil
 }
 
 func writeFull(writer io.Writer, payload []byte) error {

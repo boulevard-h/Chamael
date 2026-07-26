@@ -72,18 +72,3 @@ func TestHandshakeRoundTrip(t *testing.T) {
 		t.Fatalf("server handshake failed: %v", err)
 	}
 }
-
-func TestFrameACKRoundTrip(t *testing.T) {
-	server, client := net.Pipe()
-	defer server.Close()
-	defer client.Close()
-
-	serverErr := make(chan error, 1)
-	go func() { serverErr <- writeFrameACK(server, time.Second) }()
-	if err := readFrameACK(client, time.Second); err != nil {
-		t.Fatalf("readFrameACK: %v", err)
-	}
-	if err := <-serverErr; err != nil {
-		t.Fatalf("writeFrameACK: %v", err)
-	}
-}

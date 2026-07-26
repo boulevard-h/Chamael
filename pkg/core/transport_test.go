@@ -3,12 +3,66 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"Chamael/pkg/protobuf"
+
+	"google.golang.org/protobuf/proto"
 )
+
+func BenchmarkTCPTransportEndToEnd(b *testing.B) {
+	for _, size := range []int{256, 64 << 10} {
+		for _, window := range []int{1, 128} {
+			b.Run(fmt.Sprintf("bytes=%d/window=%d", size, window), func(b *testing.B) {
+				benchmarkTCPTransport(b, size, window)
+			})
+		}
+	}
+}
+
+func benchmarkTCPTransport(b *testing.B, payloadSize, window int) {
+	address0 := unusedTCPAddressB(b)
+	address1 := unusedTCPAddressB(b)
+	transport0 := newBenchmarkTransport(b, 0, address0, address0, address1)
+	transport1 := newBenchmarkTransport(b, 1, address1, address0, address1)
+	if err := transport0.Start(); err != nil {
+		b.Fatal(err)
+	}
+	if err := transport1.Start(); err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() {
+		_ = transport0.Close()
+		_ = transport1.Close()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := transport0.Warmup(ctx, nil); err != nil {
+		b.Fatal(err)
+	}
+
+	message := &protobuf.Message{Type: "bench", Id: []byte{0, 0, 0, 1}, Sender: 0, Data: make([]byte, payloadSize)}
+	b.SetBytes(int64(proto.Size(message)))
+	b.ResetTimer()
+	for sent := 0; sent < b.N; {
+		batch := window
+		if remaining := b.N - sent; remaining < batch {
+			batch = remaining
+		}
+		for i := 0; i < batch; i++ {
+			if err := transport0.Send(context.Background(), 1, message); err != nil {
+				b.Fatal(err)
+			}
+		}
+		for i := 0; i < batch; i++ {
+			<-transport1.Receive()
+		}
+		sent += batch
+	}
+}
 
 func TestTCPTransportConnectsOnDemand(t *testing.T) {
 	address0 := unusedTCPAddress(t)
@@ -60,6 +114,43 @@ func TestTCPTransportLocalDeliveryDoesNotDial(t *testing.T) {
 	}
 }
 
+func TestTCPTransportWarmsPeersWithoutBusinessMessage(t *testing.T) {
+	address0 := unusedTCPAddress(t)
+	address1 := unusedTCPAddress(t)
+	transport0 := newTestTransport(t, 0, address0, address0, address1)
+	transport1 := newTestTransport(t, 1, address1, address0, address1)
+	startAndClose(t, transport0)
+	startAndClose(t, transport1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := transport0.Warmup(ctx, nil); err != nil {
+		t.Fatalf("Warmup: %v", err)
+	}
+	if stats := transport0.Stats(); stats.ActiveConnections != 1 || stats.Dials != 1 || stats.SentMessages != 0 {
+		t.Fatalf("unexpected warmup stats: %+v", stats)
+	}
+	select {
+	case message := <-transport1.Receive():
+		t.Fatalf("warmup leaked a business message: %+v", message)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestTCPTransportWarmupHonorsDeadline(t *testing.T) {
+	address0 := unusedTCPAddress(t)
+	address1 := unusedTCPAddress(t)
+	transport := newTestTransport(t, 0, address0, address0, address1)
+	startAndClose(t, transport)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	err := transport.Warmup(ctx, []uint32{1})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("got %v, want context deadline exceeded", err)
+	}
+}
+
 func TestTCPTransportRejectsSenderSpoofing(t *testing.T) {
 	address0 := unusedTCPAddress(t)
 	address1 := unusedTCPAddress(t)
@@ -105,8 +196,6 @@ func TestTCPTransportReconnectsAfterConnectionBreak(t *testing.T) {
 	for {
 		select {
 		case received := <-transport1.Receive():
-			// If the first ACK was lost when the socket was forced closed, the
-			// at-least-once transport is expected to redeliver the first frame.
 			if string(received.Data) == "second" {
 				goto delivered
 			}
@@ -165,6 +254,23 @@ func newTestTransport(t *testing.T, nodeID uint32, listenAddress string, address
 	return transport
 }
 
+func newBenchmarkTransport(b *testing.B, nodeID uint32, listenAddress string, addresses ...string) *TCPTransport {
+	b.Helper()
+	peers := make([]Peer, 0, len(addresses))
+	for id, address := range addresses {
+		peers = append(peers, Peer{ID: uint32(id), Address: address})
+	}
+	transport, err := NewTCPTransport(TCPTransportConfig{
+		NodeID:        nodeID,
+		ListenAddress: listenAddress,
+		Peers:         peers,
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	return transport
+}
+
 func startAndClose(t *testing.T, transport *TCPTransport) {
 	t.Helper()
 	if err := transport.Start(); err != nil {
@@ -186,6 +292,19 @@ func unusedTCPAddress(t *testing.T) string {
 	address := listener.Addr().String()
 	if err := listener.Close(); err != nil {
 		t.Fatalf("release test address: %v", err)
+	}
+	return address
+}
+
+func unusedTCPAddressB(b *testing.B) string {
+	b.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		b.Fatal(err)
+	}
+	address := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		b.Fatal(err)
 	}
 	return address
 }

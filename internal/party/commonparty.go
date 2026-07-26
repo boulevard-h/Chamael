@@ -66,6 +66,12 @@ func (p *CommonParty) InitSendChannel() error {
 	if !p.checkInit() {
 		return errors.New("receive transport must be initialized before sending")
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := p.transport.Warmup(ctx, nil); err != nil {
+		return err
+	}
+	log.Printf("node %d warmed %d TCP peer connections", p.PID, p.N*p.m-1)
 	return nil
 }
 

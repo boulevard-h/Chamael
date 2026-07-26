@@ -22,7 +22,7 @@ const (
 	defaultDialTimeout     = 3 * time.Second
 	defaultReadTimeout     = 2 * time.Minute
 	defaultWriteTimeout    = 10 * time.Second
-	defaultIdleTimeout     = time.Minute
+	defaultIdleTimeout     = 10 * time.Minute
 	defaultKeepAlivePeriod = 30 * time.Second
 	defaultRetryMin        = 50 * time.Millisecond
 	defaultRetryMax        = 5 * time.Second
@@ -239,6 +239,62 @@ func (t *TCPTransport) Send(ctx context.Context, peerID uint32, message *protobu
 	}
 }
 
+// Warmup establishes connections to known peers in parallel without sending a
+// consensus message. An empty peer list warms every configured remote peer.
+func (t *TCPTransport) Warmup(ctx context.Context, peerIDs []uint32) error {
+	t.mu.Lock()
+	closed := t.closed
+	started := t.started
+	t.mu.Unlock()
+	if closed {
+		return ErrTransportClosed
+	}
+	if !started {
+		return errors.New("tcp transport has not been started")
+	}
+	if len(peerIDs) == 0 {
+		peerIDs = make([]uint32, 0, len(t.peers)-1)
+		for peerID := range t.peers {
+			if peerID != t.cfg.NodeID {
+				peerIDs = append(peerIDs, peerID)
+			}
+		}
+	}
+
+	type result struct {
+		peerID uint32
+		err    error
+	}
+	unique := make(map[uint32]struct{}, len(peerIDs))
+	results := make(chan result, len(peerIDs))
+	pending := 0
+	for _, peerID := range peerIDs {
+		if peerID == t.cfg.NodeID {
+			continue
+		}
+		if _, exists := unique[peerID]; exists {
+			continue
+		}
+		unique[peerID] = struct{}{}
+		sender, err := t.sender(peerID)
+		if err != nil {
+			return err
+		}
+		pending++
+		go func(peerID uint32, sender *peerSender) {
+			results <- result{peerID: peerID, err: sender.warmupConnection(ctx)}
+		}(peerID, sender)
+	}
+
+	for i := 0; i < pending; i++ {
+		result := <-results
+		if result.err != nil {
+			return fmt.Errorf("warm up peer %d: %w", result.peerID, result.err)
+		}
+	}
+	return nil
+}
+
 func (t *TCPTransport) validateOutgoing(peerID uint32, message *protobuf.Message) error {
 	t.mu.Lock()
 	closed := t.closed
@@ -283,6 +339,7 @@ func (t *TCPTransport) sender(peerID uint32) (*peerSender, error) {
 		peerID:    peerID,
 		address:   address,
 		queue:     make(chan *protobuf.Message, t.cfg.QueueSize),
+		warmup:    make(chan warmupRequest),
 	}
 	t.senders[peerID] = sender
 	t.wg.Add(1)

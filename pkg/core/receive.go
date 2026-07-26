@@ -90,9 +90,6 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		case t.receive <- message:
 			atomic.AddUint64(&t.stats.receivedMessages, 1)
 			atomic.AddUint64(&t.stats.receivedBytes, uint64(len(payload)))
-			if err := writeFrameACK(conn, t.cfg.WriteTimeout); err != nil {
-				return
-			}
 		case <-t.ctx.Done():
 			return
 		}
