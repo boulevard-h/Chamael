@@ -25,6 +25,7 @@ func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool)
 	retry := true
 	for retry {
 		addr, err1 = net.ResolveTCPAddr("tcp4", hostIP+":"+hostPort)
+		recordDial()
 		conn, err2 = net.DialTCP("tcp4", nil, addr)
 		if err1 != nil {
 			retry = true
@@ -64,11 +65,14 @@ func MakeSendChannel(hostIP string, hostPort string, dirname string, Debug bool)
 			//Send bytes
 
 			length := len(byt)
-			_, err2 := conn.Write(utils.IntToBytes(length))
-			_, err3 := conn.Write(byt)
+			writtenHeader, err2 := conn.Write(utils.IntToBytes(length))
+			recordWireSent(writtenHeader)
+			writtenPayload, err3 := conn.Write(byt)
+			recordWireSent(writtenPayload)
 			if err2 != nil || err3 != nil {
 				log.Fatalln("The send channel has break down!", err2)
 			}
+			recordSentMessage(len(byt))
 		}
 	}(conn, sendChannel)
 

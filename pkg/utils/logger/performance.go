@@ -3,7 +3,9 @@ package logger
 import (
 	"Chamael/internal/party"
 	"Chamael/pkg/config"
+	"Chamael/pkg/core"
 	"Chamael/pkg/txs"
+	"Chamael/pkg/utils/experiment"
 	"fmt"
 	"os"
 	"time"
@@ -32,7 +34,7 @@ func isInternal(tx string) bool {
 }
 
 // CalculateTPS 计算并记录总TPS、片内TPS和跨片TPS到指定文件
-func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration) {
+func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeChannel chan time.Time, outputChannel chan []string, block_delay_channel chan time.Duration, round_delay_channel chan time.Duration, extra_delay_channel chan time.Duration, transportStats core.TransportStats, memoryStats experiment.MemoryStats) {
 	var earliestTime, latestTime time.Time
 	var totalTransactions, internalTransactions, crossShardTransactions int
 
@@ -105,8 +107,13 @@ func CalculateTPS(c config.HonestConfig, p party.HonestParty, path string, timeC
 	}
 extraDelayDone:
 
-	// 计算时间差（单位：秒）
-	duration := latestTime.Sub(earliestTime).Seconds() - float64(totalExtraDelay.Milliseconds())/1000
+	// Protocol-internal work is part of both throughput and latency. Warmup and
+	// the post-protocol drain are outside earliestTime/latestTime in main.
+	duration := latestTime.Sub(earliestTime).Seconds()
+	if duration <= 0 {
+		fmt.Println("Protocol duration is not positive.")
+		return
+	}
 	fmt.Printf("Time difference: %.2f seconds\n", duration)
 
 	internalTransactions = int(float64(internalTransactions) / float64(p.N))
@@ -152,10 +159,10 @@ roundDelayDone:
 	var avgBlockDelay float64
 	var avgRoundDelay float64
 	if blockDelayCount > 0 {
-		avgBlockDelay = (float64(totalBlockDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(blockDelayCount)
+		avgBlockDelay = float64(totalBlockDelay) / float64(time.Millisecond) / float64(blockDelayCount)
 	}
 	if roundDelayCount > 0 {
-		avgRoundDelay = (float64(totalRoundDelay.Milliseconds()) - float64(totalExtraDelay.Milliseconds())) / float64(roundDelayCount)
+		avgRoundDelay = float64(totalRoundDelay) / float64(time.Millisecond) / float64(roundDelayCount)
 	}
 
 	/*
@@ -175,13 +182,25 @@ roundDelayDone:
 
 	// 修改日志消息，添加延迟信息
 	logMessage := fmt.Sprintf(
-		"Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
+		"Protocol Start Unix Nano: %d\nProtocol End Unix Nano: %d\nProtocol Duration: %.9f s\n"+
+			"Total Transactions: %d\nInternal Transactions: %d\nCross-Shard Transactions: %d\n"+
 			"Total TPS: %.2f\nInternal TPS: %.2f\nCross-Shard TPS: %.2f\n"+
 			"Average Block Delay: %.2f ms\nAverage Round Delay: %.2f ms\nLatency: %.2f ms\n"+
+			"Protocol Auxiliary Phase Time: %.3f ms\n"+
+			"Payload Sent Bytes: %d\nPayload Received Bytes: %d\n"+
+			"Wire Sent Bytes: %d\nWire Received Bytes: %d\nWire Total Bytes: %d\n"+
+			"Sent Messages: %d\nReceived Messages: %d\nReconnects: %d\n"+
+			"Peak Heap Alloc Bytes: %d\nPeak Heap Inuse Bytes: %d\nPeak RSS Bytes: %d\nRSS Supported: %t\nMemory Samples: %d\n"+
 			"Intra-Shard Traffic: %.2f MB\nCross-Shard Traffic: %.2f MB\n",
+		earliestTime.UnixNano(), latestTime.UnixNano(), duration,
 		totalTransactions, internalTransactions, crossShardTransactions,
 		totalTPS, internalTPS, crossShardTPS,
 		avgBlockDelay, avgRoundDelay, latency,
+		float64(totalExtraDelay)/float64(time.Millisecond),
+		transportStats.SentBytes, transportStats.ReceivedBytes,
+		transportStats.WireSentBytes, transportStats.WireReceivedBytes, transportStats.WireSentBytes+transportStats.WireReceivedBytes,
+		transportStats.SentMessages, transportStats.ReceivedMessages, transportStats.Reconnects,
+		memoryStats.PeakHeapAllocBytes, memoryStats.PeakHeapInuseBytes, memoryStats.PeakRSSBytes, memoryStats.RSSSupported, memoryStats.Samples,
 		p.IntraShardTraffic, p.CrossShardTraffic,
 	)
 	_, err = fmt.Fprintln(file, logMessage)

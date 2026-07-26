@@ -72,13 +72,14 @@ func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message
 					var m protobuf.Message
 					err3 := proto.Unmarshal(buf, &m)
 					if Debug == true {
-						fileLogger.Println(m)
+						fileLogger.Println(&m)
 					}
 					if err3 != nil {
 						log.Fatalln(err3, "In receive.go::go func(),Unmarshal failed")
 					}
 					//Push protobuf.Message to receivechannel
 					(channel) <- &m
+					recordReceivedMessage(len(buf))
 				}
 
 			}(conn, receiveChannel)

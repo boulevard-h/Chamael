@@ -181,3 +181,9 @@ func (p *HonestParty) checkInit() bool {
 	}
 	return true
 }
+
+// TransportStats returns a process-wide original-TCP snapshot for experiment
+// measurement. Each benchmark process owns exactly one HonestParty.
+func (p *HonestParty) TransportStats() core.TransportStats {
+	return core.SnapshotNetworkStats()
+}
