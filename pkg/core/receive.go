@@ -64,14 +64,16 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		return
 	}
 
+	var frameBuffer []byte
 	for {
-		payload, err := readFrame(conn, t.cfg.MaxMessageSize, t.cfg.ReadTimeout)
+		payload, err := readFrameInto(conn, t.cfg.MaxMessageSize, t.cfg.ReadTimeout, frameBuffer)
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) && !isTimeout(err) {
 				log.Printf("tcp transport read from peer %d failed: %v", peerID, err)
 			}
 			return
 		}
+		frameBuffer = payload
 
 		message := new(protobuf.Message)
 		if err := proto.Unmarshal(payload, message); err != nil {
@@ -90,6 +92,13 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		case t.receive <- message:
 			atomic.AddUint64(&t.stats.receivedMessages, 1)
 			atomic.AddUint64(&t.stats.receivedBytes, uint64(len(payload)))
+			// At 1000-node scale, retaining one maximum-sized buffer per
+			// inbound connection can consume tens of GiB after a large burst.
+			// Reuse common control/block frames, but release unusually large
+			// buffers after decoding.
+			if cap(frameBuffer) > maxRetainedFrameBuffer {
+				frameBuffer = nil
+			}
 		case <-t.ctx.Done():
 			return
 		}

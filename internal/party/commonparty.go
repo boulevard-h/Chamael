@@ -66,12 +66,16 @@ func (p *CommonParty) InitSendChannel() error {
 	if !p.checkInit() {
 		return errors.New("receive transport must be initialized before sending")
 	}
+	warmPeers := makePeerRange(p.Snumber*p.N, (p.Snumber+1)*p.N, p.PID)
+	if len(warmPeers) == 0 {
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := p.transport.Warmup(ctx, nil); err != nil {
+	if err := p.transport.Warmup(ctx, warmPeers); err != nil {
 		return err
 	}
-	log.Printf("node %d warmed %d TCP peer connections", p.PID, p.N*p.m-1)
+	log.Printf("node %d warmed %d same-shard TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
 	return nil
 }
 
@@ -94,42 +98,31 @@ func (p *CommonParty) Send(m *protobuf.Message, des uint32) error {
 
 // Broadcast a message to all parties
 func (p *CommonParty) Broadcast(m *protobuf.Message) error {
-	if !p.checkInit() {
-		return errors.New("This party hasn't been initialized")
-	}
-	for i := uint32(0); i < p.N*p.m; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, 0, p.N*p.m)
 }
 
 // Broadcast a message to parties in the same shard
 func (p *CommonParty) Intra_Broadcast(m *protobuf.Message) error {
-	if !p.checkInit() {
-		return errors.New("This party hasn't been initialized")
-	}
-	for i := p.Snumber * p.N; i < (p.Snumber+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, p.Snumber*p.N, (p.Snumber+1)*p.N)
 }
 
 // Broadcast a message to parties in a specified shard
 func (p *CommonParty) Shard_Broadcast(m *protobuf.Message, des uint32) error {
+	if des >= p.m {
+		return errors.New("Destination shard id is too large")
+	}
+	return p.broadcastRange(m, des*p.N, (des+1)*p.N)
+}
+
+func (p *CommonParty) broadcastRange(m *protobuf.Message, start, end uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	for i := des * p.N; i < (des+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := p.transport.SendMany(ctx, makePeerRange(start, end, ^uint32(0)), m); err != nil {
+		log.Printf("broadcast from node %d to peers [%d,%d) failed: %v", p.PID, start, end, err)
+		return err
 	}
 	return nil
 }

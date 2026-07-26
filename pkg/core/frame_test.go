@@ -48,6 +48,33 @@ func TestReadFrameRejectsOversizedPayloadBeforeAllocation(t *testing.T) {
 	}
 }
 
+func TestReadFrameIntoReusesScratchBuffer(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	scratch := make([]byte, 0, 32)
+	go func() {
+		var frame bytes.Buffer
+		header := make([]byte, frameHeaderSize)
+		binary.BigEndian.PutUint32(header, 5)
+		frame.Write(header)
+		frame.WriteString("reuse")
+		_, _ = client.Write(frame.Bytes())
+	}()
+
+	payload, err := readFrameInto(server, 1024, time.Second, scratch)
+	if err != nil {
+		t.Fatalf("readFrameInto: %v", err)
+	}
+	if string(payload) != "reuse" {
+		t.Fatalf("got %q", payload)
+	}
+	if &payload[0] != &scratch[:cap(scratch)][0] {
+		t.Fatal("readFrameInto allocated despite sufficient scratch capacity")
+	}
+}
+
 func TestHandshakeRoundTrip(t *testing.T) {
 	server, client := net.Pipe()
 	defer server.Close()

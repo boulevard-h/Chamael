@@ -88,27 +88,40 @@ func writeFrame(conn net.Conn, payload []byte, maxSize uint32, timeout time.Dura
 	if err := conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
 		return err
 	}
-	header := make([]byte, frameHeaderSize)
-	binary.BigEndian.PutUint32(header, uint32(len(payload)))
-	if err := writeFull(conn, header); err != nil {
-		return err
-	}
-	return writeFull(conn, payload)
+	var header [frameHeaderSize]byte
+	binary.BigEndian.PutUint32(header[:], uint32(len(payload)))
+
+	// net.Buffers uses writev for TCP connections, so the length prefix and
+	// protobuf payload normally reach the kernel in one system call. The bytes
+	// on the wire are identical to the previous two-Write implementation.
+	buffers := net.Buffers{header[:], payload}
+	_, err := buffers.WriteTo(conn)
+	return err
 }
 
 func readFrame(conn net.Conn, maxSize uint32, timeout time.Duration) ([]byte, error) {
+	return readFrameInto(conn, maxSize, timeout, nil)
+}
+
+// readFrameInto reads a frame into scratch when it has enough capacity. A
+// connection handler can retain the returned slice and avoid allocating one
+// frame-sized buffer for every message.
+func readFrameInto(conn net.Conn, maxSize uint32, timeout time.Duration, scratch []byte) ([]byte, error) {
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
 	}
-	header := make([]byte, frameHeaderSize)
-	if _, err := io.ReadFull(conn, header); err != nil {
+	var header [frameHeaderSize]byte
+	if _, err := io.ReadFull(conn, header[:]); err != nil {
 		return nil, err
 	}
-	length := binary.BigEndian.Uint32(header)
+	length := binary.BigEndian.Uint32(header[:])
 	if length == 0 || length > maxSize {
 		return nil, fmt.Errorf("frame size %d exceeds valid range 1..%d", length, maxSize)
 	}
-	payload := make([]byte, int(length))
+	if cap(scratch) < int(length) {
+		scratch = make([]byte, int(length))
+	}
+	payload := scratch[:int(length)]
 	if _, err := io.ReadFull(conn, payload); err != nil {
 		return nil, err
 	}

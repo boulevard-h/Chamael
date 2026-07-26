@@ -7,17 +7,17 @@ import (
 	"net"
 	"sync/atomic"
 	"time"
-
-	"Chamael/pkg/protobuf"
-
-	"google.golang.org/protobuf/proto"
 )
+
+type outboundMessage struct {
+	payload []byte
+}
 
 type peerSender struct {
 	transport *TCPTransport
 	peerID    uint32
 	address   string
-	queue     chan *protobuf.Message
+	queue     chan *outboundMessage
 	warmup    chan warmupRequest
 }
 
@@ -51,12 +51,8 @@ func (s *peerSender) run() {
 			request.result <- err
 		case message := <-s.queue:
 			stopTimer(idleTimer)
-			payload, err := proto.Marshal(message)
-			if err != nil {
-				log.Printf("marshal message for peer %d: %v", s.peerID, err)
-				continue
-			}
-			conn, err = s.deliver(conn, payload)
+			var err error
+			conn, err = s.deliver(conn, message.payload)
 			if err != nil {
 				return
 			}

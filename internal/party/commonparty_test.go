@@ -9,7 +9,7 @@ import (
 	"Chamael/pkg/protobuf"
 )
 
-func TestCommonPartyWarmsTCPTransportBeforeSending(t *testing.T) {
+func TestCommonPartyKeepsCrossShardPeerOnDemand(t *testing.T) {
 	ipList := []string{"127.0.0.1", "127.0.0.1"}
 	portList := []string{unusedPort(t), unusedPort(t)}
 	party0 := NewCommonParty(1, 0, 2, 0, 0, 0, ipList, portList, nil)
@@ -30,8 +30,8 @@ func TestCommonPartyWarmsTCPTransportBeforeSending(t *testing.T) {
 			t.Fatalf("InitSendChannel: %v", err)
 		}
 	}
-	if stats := party0.transport.Stats(); stats.Dials != 1 || stats.ActiveConnections == 0 {
-		t.Fatalf("sender initialization did not warm the remote peer: %+v", stats)
+	if stats := party0.transport.Stats(); stats.Dials != 0 || stats.ActiveConnections != 0 {
+		t.Fatalf("sender initialization eagerly warmed a cross-shard peer: %+v", stats)
 	}
 
 	message := &protobuf.Message{Type: "test", Id: []byte{1}, Sender: 0, Data: []byte("party")}
@@ -45,6 +45,29 @@ func TestCommonPartyWarmsTCPTransportBeforeSending(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("party message was not dispatched")
+	}
+	if stats := party0.transport.Stats(); stats.Dials != 1 || stats.ActiveConnections == 0 {
+		t.Fatalf("cross-shard send did not connect on demand: %+v", stats)
+	}
+}
+
+func TestCommonPartyWarmsSameShardPeersOnly(t *testing.T) {
+	ipList := []string{"127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	portList := []string{unusedPort(t), unusedPort(t), unusedPort(t), unusedPort(t)}
+	party0 := NewCommonParty(2, 0, 2, 0, 0, 0, ipList, portList, nil)
+	party1 := NewCommonParty(2, 0, 2, 1, 0, 1, ipList, portList, nil)
+
+	for _, p := range []*CommonParty{party0, party1} {
+		if err := p.InitReceiveChannel(); err != nil {
+			t.Fatalf("InitReceiveChannel: %v", err)
+		}
+		defer p.Close()
+	}
+	if err := party0.InitSendChannel(); err != nil {
+		t.Fatalf("InitSendChannel: %v", err)
+	}
+	if stats := party0.transport.Stats(); stats.Dials != 1 || stats.ActiveConnections != 1 || stats.ActiveSenders != 1 {
+		t.Fatalf("expected exactly one same-shard warm connection: %+v", stats)
 	}
 }
 

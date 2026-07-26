@@ -26,6 +26,8 @@ const (
 	defaultKeepAlivePeriod = 30 * time.Second
 	defaultRetryMin        = 50 * time.Millisecond
 	defaultRetryMax        = 5 * time.Second
+	defaultWarmupParallel  = 32
+	maxRetainedFrameBuffer = 128 << 10 // 128 KiB per inbound connection
 )
 
 var (
@@ -54,6 +56,7 @@ type TCPTransportConfig struct {
 	KeepAlivePeriod time.Duration
 	RetryMin        time.Duration
 	RetryMax        time.Duration
+	WarmupParallel  int
 	Debug           bool
 }
 
@@ -163,6 +166,9 @@ func applyTCPDefaults(cfg *TCPTransportConfig) {
 	if cfg.RetryMax < cfg.RetryMin {
 		cfg.RetryMax = cfg.RetryMin
 	}
+	if cfg.WarmupParallel <= 0 {
+		cfg.WarmupParallel = defaultWarmupParallel
+	}
 }
 
 // Start binds the listening socket. It does not connect to any remote peer.
@@ -215,6 +221,9 @@ func (t *TCPTransport) Send(ctx context.Context, peerID uint32, message *protobu
 		return err
 	}
 	if peerID == t.cfg.NodeID {
+		if err := t.validateEncodedSize(proto.Size(message)); err != nil {
+			return err
+		}
 		select {
 		case t.receive <- message:
 			return nil
@@ -225,18 +234,77 @@ func (t *TCPTransport) Send(ctx context.Context, peerID uint32, message *protobu
 		}
 	}
 
+	encoded, err := t.encodeOutgoing(message)
+	if err != nil {
+		return err
+	}
 	sender, err := t.sender(peerID)
 	if err != nil {
 		return err
 	}
 	select {
-	case sender.queue <- message:
+	case sender.queue <- encoded:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-t.ctx.Done():
 		return ErrTransportClosed
 	}
+}
+
+// SendMany enqueues the same message for multiple peers. The protobuf envelope
+// is encoded exactly once and the immutable encoded bytes are shared by all
+// per-peer send queues. This preserves the existing wire format while avoiding
+// O(peer count) marshal work for broadcasts.
+func (t *TCPTransport) SendMany(ctx context.Context, peerIDs []uint32, message *protobuf.Message) error {
+	if err := t.validateOutgoingMessage(message); err != nil {
+		return err
+	}
+
+	hasRemote := false
+	for _, peerID := range peerIDs {
+		if err := t.validatePeer(peerID); err != nil {
+			return err
+		}
+		hasRemote = hasRemote || peerID != t.cfg.NodeID
+	}
+
+	var encoded *outboundMessage
+	var err error
+	if hasRemote {
+		encoded, err = t.encodeOutgoing(message)
+	} else {
+		err = t.validateEncodedSize(proto.Size(message))
+	}
+	if err != nil {
+		return err
+	}
+
+	for _, peerID := range peerIDs {
+		if peerID == t.cfg.NodeID {
+			select {
+			case t.receive <- message:
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-t.ctx.Done():
+				return ErrTransportClosed
+			}
+			continue
+		}
+
+		sender, senderErr := t.sender(peerID)
+		if senderErr != nil {
+			return senderErr
+		}
+		select {
+		case sender.queue <- encoded:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.ctx.Done():
+			return ErrTransportClosed
+		}
+	}
+	return nil
 }
 
 // Warmup establishes connections to known peers in parallel without sending a
@@ -265,9 +333,13 @@ func (t *TCPTransport) Warmup(ctx context.Context, peerIDs []uint32) error {
 		peerID uint32
 		err    error
 	}
+	type job struct {
+		peerID uint32
+		sender *peerSender
+	}
 	unique := make(map[uint32]struct{}, len(peerIDs))
 	results := make(chan result, len(peerIDs))
-	pending := 0
+	jobs := make([]job, 0, len(peerIDs))
 	for _, peerID := range peerIDs {
 		if peerID == t.cfg.NodeID {
 			continue
@@ -280,13 +352,27 @@ func (t *TCPTransport) Warmup(ctx context.Context, peerIDs []uint32) error {
 		if err != nil {
 			return err
 		}
-		pending++
-		go func(peerID uint32, sender *peerSender) {
-			results <- result{peerID: peerID, err: sender.warmupConnection(ctx)}
-		}(peerID, sender)
+		jobs = append(jobs, job{peerID: peerID, sender: sender})
 	}
 
-	for i := 0; i < pending; i++ {
+	work := make(chan job, len(jobs))
+	for _, item := range jobs {
+		work <- item
+	}
+	close(work)
+	workers := t.cfg.WarmupParallel
+	if workers > len(jobs) {
+		workers = len(jobs)
+	}
+	for i := 0; i < workers; i++ {
+		go func() {
+			for item := range work {
+				results <- result{peerID: item.peerID, err: item.sender.warmupConnection(ctx)}
+			}
+		}()
+	}
+
+	for i := 0; i < len(jobs); i++ {
 		result := <-results
 		if result.err != nil {
 			return fmt.Errorf("warm up peer %d: %w", result.peerID, result.err)
@@ -296,6 +382,13 @@ func (t *TCPTransport) Warmup(ctx context.Context, peerIDs []uint32) error {
 }
 
 func (t *TCPTransport) validateOutgoing(peerID uint32, message *protobuf.Message) error {
+	if err := t.validateOutgoingMessage(message); err != nil {
+		return err
+	}
+	return t.validatePeer(peerID)
+}
+
+func (t *TCPTransport) validateOutgoingMessage(message *protobuf.Message) error {
 	t.mu.Lock()
 	closed := t.closed
 	started := t.started
@@ -306,19 +399,38 @@ func (t *TCPTransport) validateOutgoing(peerID uint32, message *protobuf.Message
 	if !started {
 		return errors.New("tcp transport has not been started")
 	}
-	if _, ok := t.peers[peerID]; !ok {
-		return fmt.Errorf("%w: %d", ErrUnknownPeer, peerID)
-	}
 	if message == nil || message.Type == "" || len(message.Type) > maxMessageTypeLength || len(message.Id) > maxMessageIDLength {
 		return ErrInvalidMessage
 	}
 	if message.Sender != t.cfg.NodeID {
 		return fmt.Errorf("%w: sender %d does not match local node %d", ErrInvalidMessage, message.Sender, t.cfg.NodeID)
 	}
-	if size := proto.Size(message); size <= 0 || uint64(size) > uint64(t.cfg.MaxMessageSize) {
+	return nil
+}
+
+func (t *TCPTransport) validatePeer(peerID uint32) error {
+	if _, ok := t.peers[peerID]; !ok {
+		return fmt.Errorf("%w: %d", ErrUnknownPeer, peerID)
+	}
+	return nil
+}
+
+func (t *TCPTransport) validateEncodedSize(size int) error {
+	if size <= 0 || uint64(size) > uint64(t.cfg.MaxMessageSize) {
 		return fmt.Errorf("%w: encoded size %d exceeds valid range 1..%d", ErrInvalidMessage, size, t.cfg.MaxMessageSize)
 	}
 	return nil
+}
+
+func (t *TCPTransport) encodeOutgoing(message *protobuf.Message) (*outboundMessage, error) {
+	payload, err := proto.Marshal(message)
+	if err != nil {
+		return nil, fmt.Errorf("marshal message: %w", err)
+	}
+	if err := t.validateEncodedSize(len(payload)); err != nil {
+		return nil, err
+	}
+	return &outboundMessage{payload: payload}, nil
 }
 
 func (t *TCPTransport) sender(peerID uint32) (*peerSender, error) {
@@ -338,7 +450,7 @@ func (t *TCPTransport) sender(peerID uint32) (*peerSender, error) {
 		transport: t,
 		peerID:    peerID,
 		address:   address,
-		queue:     make(chan *protobuf.Message, t.cfg.QueueSize),
+		queue:     make(chan *outboundMessage, t.cfg.QueueSize),
 		warmup:    make(chan warmupRequest),
 	}
 	t.senders[peerID] = sender

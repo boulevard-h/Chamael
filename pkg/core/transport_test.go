@@ -114,6 +114,33 @@ func TestTCPTransportLocalDeliveryDoesNotDial(t *testing.T) {
 	}
 }
 
+func TestTCPTransportSendManyDeliversOneEnvelopeToEveryPeer(t *testing.T) {
+	addresses := []string{unusedTCPAddress(t), unusedTCPAddress(t), unusedTCPAddress(t)}
+	transports := make([]*TCPTransport, len(addresses))
+	for nodeID, address := range addresses {
+		transports[nodeID] = newTestTransport(t, uint32(nodeID), address, addresses...)
+		startAndClose(t, transports[nodeID])
+	}
+
+	message := testMessage(0, "broadcast")
+	if err := transports[0].SendMany(context.Background(), []uint32{0, 1, 2}, message); err != nil {
+		t.Fatalf("SendMany: %v", err)
+	}
+	for nodeID, transport := range transports {
+		select {
+		case received := <-transport.Receive():
+			if received.Type != message.Type || string(received.Data) != string(message.Data) {
+				t.Fatalf("node %d received %+v, want %+v", nodeID, received, message)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("node %d did not receive broadcast", nodeID)
+		}
+	}
+	if stats := transports[0].Stats(); stats.ActiveSenders != 2 || stats.Dials != 2 {
+		t.Fatalf("broadcast created unexpected sender work: %+v", stats)
+	}
+}
+
 func TestTCPTransportWarmsPeersWithoutBusinessMessage(t *testing.T) {
 	address0 := unusedTCPAddress(t)
 	address1 := unusedTCPAddress(t)

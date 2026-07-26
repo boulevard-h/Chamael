@@ -95,12 +95,16 @@ func (p *HonestParty) InitSendChannel() error {
 	if !p.checkInit() {
 		return errors.New("receive transport must be initialized before sending")
 	}
+	warmPeers := makePeerRange(p.Snumber*p.N, (p.Snumber+1)*p.N, p.PID)
+	if len(warmPeers) == 0 {
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := p.transport.Warmup(ctx, nil); err != nil {
+	if err := p.transport.Warmup(ctx, warmPeers); err != nil {
 		return err
 	}
-	log.Printf("node %d warmed %d TCP peer connections", p.PID, p.N*p.M-1)
+	log.Printf("node %d warmed %d same-shard TCP peer connections; other peers remain on-demand", p.PID, len(warmPeers))
 	return nil
 }
 
@@ -109,74 +113,72 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	if des < p.N*p.M {
-		// 计算消息大小并转换为MB
-		// 估算消息大小：Type(字符串) + ID(字节切片) + sender(4字节) + data(字节切片)
-		messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024) // 转换为MB
-
-		// 判断目标节点是否与当前节点在同一分片内
-		desShard := des / p.N // 计算目标节点所在的分片编号
-
-		// 统计通信量
-		if desShard == p.Snumber {
-			// 片内通信
-			p.IntraShardTraffic += messageSize
-		} else {
-			// 跨片通信
-			p.CrossShardTraffic += messageSize
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		err := p.transport.Send(ctx, des, m)
-		if err != nil {
-			log.Printf("send from node %d to node %d failed: %v", p.PID, des, err)
-		}
-		return err
+	if des >= p.N*p.M {
+		return errors.New("Destination id is too large")
 	}
-	return errors.New("Destination id is too large")
+	p.recordTraffic(m, des)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := p.transport.Send(ctx, des, m)
+	if err != nil {
+		log.Printf("send from node %d to node %d failed: %v", p.PID, des, err)
+	}
+	return err
 }
 
 // Broadcast a message to all parties
 func (p *HonestParty) Broadcast(m *protobuf.Message) error {
-	if !p.checkInit() {
-		return errors.New("This party hasn't been initialized")
-	}
-	for i := uint32(0); i < p.N*p.M; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, 0, p.N*p.M)
 }
 
 // Broadcast a message to parties in the same shard
 func (p *HonestParty) Intra_Broadcast(m *protobuf.Message) error {
-	if !p.checkInit() {
-		return errors.New("This party hasn't been initialized")
-	}
-	for i := p.Snumber * p.N; i < (p.Snumber+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return p.broadcastRange(m, p.Snumber*p.N, (p.Snumber+1)*p.N)
 }
 
 // Broadcast a message to parties in a specified shard
 func (p *HonestParty) Shard_Broadcast(m *protobuf.Message, des uint32) error {
+	if des >= p.M {
+		return errors.New("Destination shard id is too large")
+	}
+	return p.broadcastRange(m, des*p.N, (des+1)*p.N)
+}
+
+func (p *HonestParty) broadcastRange(m *protobuf.Message, start, end uint32) error {
 	if !p.checkInit() {
 		return errors.New("This party hasn't been initialized")
 	}
-	for i := des * p.N; i < (des+1)*p.N; i++ {
-		err := p.Send(m, i)
-		if err != nil {
-			return err
-		}
+	peers := makePeerRange(start, end, ^uint32(0))
+	for _, peerID := range peers {
+		p.recordTraffic(m, peerID)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := p.transport.SendMany(ctx, peers, m); err != nil {
+		log.Printf("broadcast from node %d to peers [%d,%d) failed: %v", p.PID, start, end, err)
+		return err
 	}
 	return nil
+}
+
+func (p *HonestParty) recordTraffic(m *protobuf.Message, des uint32) {
+	// Preserve the repository's existing traffic accounting definition.
+	messageSize := float64(len(m.Type)+len(m.Id)+4+len(m.Data)) / (1024 * 1024)
+	if des/p.N == p.Snumber {
+		p.IntraShardTraffic += messageSize
+	} else {
+		p.CrossShardTraffic += messageSize
+	}
+}
+
+func makePeerRange(start, end, exclude uint32) []uint32 {
+	peers := make([]uint32, 0, end-start)
+	for peerID := start; peerID < end; peerID++ {
+		if peerID != exclude {
+			peers = append(peers, peerID)
+		}
+	}
+	return peers
 }
 
 // GetMessage Try to get a message according to messageType, ID
