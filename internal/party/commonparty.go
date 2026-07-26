@@ -3,10 +3,11 @@ package party
 import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
+	"context"
 	"errors"
-	"fmt"
-	"os"
+	"log"
 	"sync"
+	"time"
 )
 
 // CommonParty is a struct of normal consensus parties
@@ -19,7 +20,7 @@ type CommonParty struct {
 	SID               uint32 //节点在分片内的编号
 	ipList            []string
 	portList          []string
-	sendChannels      []chan *protobuf.Message
+	transport         *core.TCPTransport
 	dispatcheChannels *sync.Map
 	ShardList         []int //节点负责沟通的分片
 	Debug             bool
@@ -28,16 +29,15 @@ type CommonParty struct {
 // NewCommonParty return a new common party object
 func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid uint32, ipList []string, portList []string, ShardList []int) *CommonParty {
 	p := CommonParty{
-		N:            N,
-		F:            F,
-		m:            m, //分片个数
-		PID:          pid,
-		Snumber:      snum, //节点所在的分片编号
-		SID:          sid,  //节点在分片内的编号
-		ipList:       ipList,
-		portList:     portList,
-		sendChannels: make([]chan *protobuf.Message, N*m), //N改成N*m ！
-		ShardList:    ShardList,
+		N:         N,
+		F:         F,
+		m:         m, //分片个数
+		PID:       pid,
+		Snumber:   snum, //节点所在的分片编号
+		SID:       sid,  //节点在分片内的编号
+		ipList:    ipList,
+		portList:  portList,
+		ShardList: ShardList,
 	}
 
 	return &p
@@ -45,21 +45,26 @@ func NewCommonParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *CommonParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.N)), p.N)
+	if p.transport != nil {
+		return errors.New("TCP transport is already initialized")
+	}
+	transport, err := core.NewPartyTCPTransport(p.PID, p.ipList, p.portList, p.Debug)
+	if err != nil {
+		return err
+	}
+	if err := transport.Start(); err != nil {
+		_ = transport.Close()
+		return err
+	}
+	p.transport = transport
+	p.dispatcheChannels = core.MakeDispatcheChannels(transport.Receive(), p.N*p.m)
 	return nil
 }
 
 // InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
 func (p *CommonParty) InitSendChannel() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	dirname := fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
-	os.Mkdir(dirname, 0755)
-	for i := uint32(0); i < p.N*p.m; i++ {
-		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i], dirname, p.Debug)
+	if !p.checkInit() {
+		return errors.New("receive transport must be initialized before sending")
 	}
 	return nil
 }
@@ -70,8 +75,13 @@ func (p *CommonParty) Send(m *protobuf.Message, des uint32) error {
 		return errors.New("This party hasn't been initialized")
 	}
 	if des < p.N*p.m {
-		p.sendChannels[des] <- m
-		return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := p.transport.Send(ctx, des, m)
+		if err != nil {
+			log.Printf("send from node %d to node %d failed: %v", p.PID, des, err)
+		}
+		return err
 	}
 	return errors.New("Destination id is too large")
 }
@@ -129,8 +139,13 @@ func (p *CommonParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 }
 
 func (p *CommonParty) checkInit() bool {
-	if p.sendChannels == nil {
-		return false
+	return p.transport != nil && p.dispatcheChannels != nil
+}
+
+// Close stops network IO and releases all active connections.
+func (p *CommonParty) Close() error {
+	if p.transport == nil {
+		return nil
 	}
-	return true
+	return p.transport.Close()
 }

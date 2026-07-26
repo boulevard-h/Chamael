@@ -31,11 +31,16 @@ func main() {
 	}
 
 	p := party.NewHonestParty(uint32(c.N), uint32(c.F), uint32(c.M), uint32(c.PID), uint32(c.Snumber), uint32(c.SID), c.IPList, c.PortList, c.PK, c.SK, Debug)
-	p.InitReceiveChannel()
+	if err := p.InitReceiveChannel(); err != nil {
+		log.Fatalln("initialize TCP transport:", err)
+	}
+	defer p.Close()
 
 	time.Sleep(time.Second * time.Duration(c.PrepareTime/10))
 
-	p.InitSendChannel()
+	if err := p.InitSendChannel(); err != nil {
+		log.Fatalln("initialize sender:", err)
+	}
 
 	txlength := 32
 

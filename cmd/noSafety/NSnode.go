@@ -41,12 +41,17 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	p.InitReceiveChannel()
+	if err := p.InitReceiveChannel(); err != nil {
+		log.Fatalln("initialize TCP transport:", err)
+	}
+	defer p.Close()
 
 	//fmt.Println(p.PID, p.ShardList)
 	time.Sleep(time.Second * time.Duration(c.PrepareTime/10))
 
-	p.InitSendChannel()
+	if err := p.InitSendChannel(); err != nil {
+		log.Fatalln("initialize sender:", err)
+	}
 
 	// 从命令行参数获取启动时间字符串（格式：2006-01-02 15:04:05.000）
 	if len(os.Args) < 4 {

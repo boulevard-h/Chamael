@@ -1,88 +1,121 @@
 package core
 
 import (
-	"Chamael/pkg/protobuf"
-	"Chamael/pkg/utils"
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net"
-	"os"
+	"sync/atomic"
 	"time"
+
+	"Chamael/pkg/protobuf"
 
 	"google.golang.org/protobuf/proto"
 )
 
-// MakeReceiveChannel returns a channel receiving messages
-func MakeReceiveChannel(port string, Debug bool, num int) chan *protobuf.Message {
-	var addr *net.TCPAddr
-	var lis *net.TCPListener
-	var err1, err2 error
-	retry := true
-	//Retry to make listener
-	for retry {
-		addr, err1 = net.ResolveTCPAddr("tcp4", ":"+port)
-		lis, err2 = net.ListenTCP("tcp4", addr)
-		if err1 != nil || err2 != nil {
-			time.Sleep(1000)
-			retry = true
-		} else {
-			retry = false
+func (t *TCPTransport) acceptLoop() {
+	defer t.wg.Done()
+	for {
+		conn, err := t.listener.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) || t.ctx.Err() != nil {
+				return
+			}
+			if temporary, ok := err.(interface{ Temporary() bool }); ok && temporary.Temporary() {
+				timer := time.NewTimer(50 * time.Millisecond)
+				select {
+				case <-timer.C:
+				case <-t.ctx.Done():
+					timer.Stop()
+					return
+				}
+				continue
+			}
+			log.Printf("tcp transport accept failed: %v", err)
+			continue
+		}
+		t.configureTCP(conn)
+		t.trackConn(conn)
+		t.wg.Add(1)
+		go t.handleConn(conn)
+	}
+}
+
+func (t *TCPTransport) handleConn(conn net.Conn) {
+	defer t.wg.Done()
+	defer t.untrackConn(conn)
+	defer conn.Close()
+
+	peerID, err := readHandshake(conn, t.cfg.DialTimeout)
+	if err != nil {
+		log.Printf("tcp transport rejected connection from %s: %v", conn.RemoteAddr(), err)
+		return
+	}
+	if peerID == t.cfg.NodeID {
+		log.Printf("tcp transport rejected network loopback from node %d", peerID)
+		return
+	}
+	if _, ok := t.peers[peerID]; !ok {
+		log.Printf("tcp transport rejected unknown peer %d from %s", peerID, conn.RemoteAddr())
+		return
+	}
+	if err := writeHandshakeReply(conn, t.cfg.DialTimeout); err != nil {
+		return
+	}
+
+	for {
+		payload, err := readFrame(conn, t.cfg.MaxMessageSize, t.cfg.ReadTimeout)
+		if err != nil {
+			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) && !isTimeout(err) {
+				log.Printf("tcp transport read from peer %d failed: %v", peerID, err)
+			}
+			return
+		}
+
+		message := new(protobuf.Message)
+		if err := proto.Unmarshal(payload, message); err != nil {
+			log.Printf("tcp transport discarded malformed protobuf from peer %d: %v", peerID, err)
+			return
+		}
+		if err := validateIncomingMessage(message, peerID); err != nil {
+			log.Printf("tcp transport discarded invalid message from peer %d: %v", peerID, err)
+			return
+		}
+		if t.cfg.Debug {
+			log.Printf("tcp transport received %d bytes at node %d from peer %d: %s", len(payload), t.cfg.NodeID, peerID, message.Type)
+		}
+
+		select {
+		case t.receive <- message:
+			atomic.AddUint64(&t.stats.receivedMessages, 1)
+			atomic.AddUint64(&t.stats.receivedBytes, uint64(len(payload)))
+			if err := writeFrameACK(conn, t.cfg.WriteTimeout); err != nil {
+				return
+			}
+		case <-t.ctx.Done():
+			return
 		}
 	}
-	log.Println("create listener", addr, "success")
-	//Make the receive channel and the handle func
-	var conn *net.TCPConn
-	var err3 error
-	var fileLogger *log.Logger
-	receiveChannel := make(chan *protobuf.Message, MAXMESSAGE)
-	go func() {
-		if Debug == true {
-			homeDir, _ := os.UserHomeDir()
-			filename := fmt.Sprintf("%s/Chamael/log/(Received)%s.log", homeDir, lis.Addr())
-			file, _ := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-			fileLogger = log.New(file, "[MessageLogger] ", log.Ldate|log.Ltime|log.Lmicroseconds)
-		}
-		for {
-			//The handle func run forever
-			conn, err3 = lis.AcceptTCP()
-			conn.SetKeepAlive(true)
-			if err3 != nil {
-				log.Fatalln(err3, "In receive.go::go func(),AcceptTCP failed")
-			}
-			//Once connect to a node, make a sub-handle func to handle this connection
-			go func(conn *net.TCPConn, channel chan *protobuf.Message) {
-				for {
-					//Receive bytes
-					lengthBuf := make([]byte, 4)
-					_, err1 := io.ReadFull(conn, lengthBuf)
-					length := utils.BytesToInt(lengthBuf)
-					buf := make([]byte, length)
-					_, err2 := io.ReadFull(conn, buf)
+}
 
-					if err1 != nil || err2 != nil {
-						if num <= 10 || rand.Intn(num) < 10 {
-							log.Printf("The receive channel of %s (from %s) has break down", conn.LocalAddr(), conn.RemoteAddr())
-						}
-						return
-					}
+func validateIncomingMessage(message *protobuf.Message, peerID uint32) error {
+	if message == nil || message.Type == "" {
+		return ErrInvalidMessage
+	}
+	if len(message.Type) > maxMessageTypeLength {
+		return fmt.Errorf("%w: message type is too long", ErrInvalidMessage)
+	}
+	if len(message.Id) > maxMessageIDLength {
+		return fmt.Errorf("%w: message ID is too long", ErrInvalidMessage)
+	}
+	if message.Sender != peerID {
+		return fmt.Errorf("%w: envelope sender %d differs from handshake peer %d", ErrInvalidMessage, message.Sender, peerID)
+	}
+	return nil
+}
 
-					//Do Unmarshal
-					var m protobuf.Message
-					err3 := proto.Unmarshal(buf, &m)
-					if Debug == true {
-						fileLogger.Println(m)
-					}
-					if err3 != nil {
-						log.Fatalln(err3, "In receive.go::go func(),Unmarshal failed")
-					}
-					//Push protobuf.Message to receivechannel
-					(channel) <- &m
-				}
-
-			}(conn, receiveChannel)
-		}
-	}()
-	return receiveChannel
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }

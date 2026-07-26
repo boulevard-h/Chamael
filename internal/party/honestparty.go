@@ -3,12 +3,13 @@ package party
 import (
 	"Chamael/pkg/core"
 	"Chamael/pkg/protobuf"
+	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
+	"log"
 	"math/big"
-	"os"
 	"sync"
+	"time"
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing"
@@ -23,7 +24,7 @@ type HonestParty struct {
 	SID               uint32 //节点在分片内的编号
 	ipList            []string
 	portList          []string
-	sendChannels      []chan *protobuf.Message
+	transport         *core.TCPTransport
 	dispatcheChannels *sync.Map
 	Acc               *big.Int // 交易累加器
 	Debug             bool
@@ -61,7 +62,6 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 		SID:               sid,  //节点在分片内的编号
 		ipList:            ipList,
 		portList:          portList,
-		sendChannels:      make([]chan *protobuf.Message, N*m), //N改成N*m ！
 		PK:                points,
 		SK:                scalar,
 		Debug:             Debug,
@@ -74,23 +74,26 @@ func NewHonestParty(N uint32, F uint32, m uint32, pid uint32, snum uint32, sid u
 
 // InitReceiveChannel setup the listener and Init the receiveChannel
 func (p *HonestParty) InitReceiveChannel() error {
-	p.dispatcheChannels = core.MakeDispatcheChannels(core.MakeReceiveChannel(p.portList[p.PID], p.Debug, int(p.N)), p.N*p.M)
+	if p.transport != nil {
+		return errors.New("TCP transport is already initialized")
+	}
+	transport, err := core.NewPartyTCPTransport(p.PID, p.ipList, p.portList, p.Debug)
+	if err != nil {
+		return err
+	}
+	if err := transport.Start(); err != nil {
+		_ = transport.Close()
+		return err
+	}
+	p.transport = transport
+	p.dispatcheChannels = core.MakeDispatcheChannels(transport.Receive(), p.N*p.M)
 	return nil
 }
 
 // InitSendChannel setup the sender and Init the sendChannel, please run this after initializing all party's receiveChannel
 func (p *HonestParty) InitSendChannel() error {
-	homeDir, err := os.UserHomeDir()
-	var dirname string
-	if err != nil {
-		return err
-	}
-	if p.Debug == true {
-		dirname = fmt.Sprintf(homeDir+"/Chamael/log/%s", p.ipList[p.PID]+":"+p.portList[p.PID])
-		os.Mkdir(dirname, 0755)
-	}
-	for i := uint32(0); i < p.N*p.M; i++ {
-		p.sendChannels[i] = core.MakeSendChannel(p.ipList[i], p.portList[i], dirname, p.Debug)
+	if !p.checkInit() {
+		return errors.New("receive transport must be initialized before sending")
 	}
 	return nil
 }
@@ -117,8 +120,13 @@ func (p *HonestParty) Send(m *protobuf.Message, des uint32) error {
 			p.CrossShardTraffic += messageSize
 		}
 
-		p.sendChannels[des] <- m
-		return nil
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := p.transport.Send(ctx, des, m)
+		if err != nil {
+			log.Printf("send from node %d to node %d failed: %v", p.PID, des, err)
+		}
+		return err
 	}
 	return errors.New("Destination id is too large")
 }
@@ -176,8 +184,13 @@ func (p *HonestParty) GetMessage(messageType string, ID []byte) chan *protobuf.M
 }
 
 func (p *HonestParty) checkInit() bool {
-	if p.sendChannels == nil {
-		return false
+	return p.transport != nil && p.dispatcheChannels != nil
+}
+
+// Close stops network IO and releases all active connections.
+func (p *HonestParty) Close() error {
+	if p.transport == nil {
+		return nil
 	}
-	return true
+	return p.transport.Close()
 }
