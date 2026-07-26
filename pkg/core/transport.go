@@ -80,12 +80,14 @@ type TCPTransport struct {
 }
 
 type transportCounters struct {
-	dials            uint64
-	reconnects       uint64
-	sentMessages     uint64
-	receivedMessages uint64
-	sentBytes        uint64
-	receivedBytes    uint64
+	dials             uint64
+	reconnects        uint64
+	sentMessages      uint64
+	receivedMessages  uint64
+	sentBytes         uint64
+	receivedBytes     uint64
+	wireSentBytes     uint64
+	wireReceivedBytes uint64
 }
 
 // TCPTransportStats is a point-in-time transport health snapshot.
@@ -98,6 +100,38 @@ type TCPTransportStats struct {
 	ReceivedMessages  uint64
 	SentBytes         uint64
 	ReceivedBytes     uint64
+	// WireSentBytes and WireReceivedBytes count bytes at the socket boundary
+	// on locally initiated connections. Summing both fields over all nodes
+	// counts every transport byte once, including framing and handshakes.
+	WireSentBytes     uint64
+	WireReceivedBytes uint64
+}
+
+// TransportStats gives all three experiment branches the same logger API.
+type TransportStats = TCPTransportStats
+
+// Subtract returns the counter delta between two snapshots. Connection gauges
+// are copied from the later snapshot rather than subtracted.
+func (s TCPTransportStats) Subtract(before TCPTransportStats) TCPTransportStats {
+	return TCPTransportStats{
+		ActiveConnections: s.ActiveConnections,
+		ActiveSenders:     s.ActiveSenders,
+		Dials:             subtractCounter(s.Dials, before.Dials),
+		Reconnects:        subtractCounter(s.Reconnects, before.Reconnects),
+		SentMessages:      subtractCounter(s.SentMessages, before.SentMessages),
+		ReceivedMessages:  subtractCounter(s.ReceivedMessages, before.ReceivedMessages),
+		SentBytes:         subtractCounter(s.SentBytes, before.SentBytes),
+		ReceivedBytes:     subtractCounter(s.ReceivedBytes, before.ReceivedBytes),
+		WireSentBytes:     subtractCounter(s.WireSentBytes, before.WireSentBytes),
+		WireReceivedBytes: subtractCounter(s.WireReceivedBytes, before.WireReceivedBytes),
+	}
+}
+
+func subtractCounter(after, before uint64) uint64 {
+	if after < before {
+		return 0
+	}
+	return after - before
 }
 
 func NewTCPTransport(cfg TCPTransportConfig) (*TCPTransport, error) {
@@ -212,6 +246,8 @@ func (t *TCPTransport) Stats() TCPTransportStats {
 		ReceivedMessages:  atomic.LoadUint64(&t.stats.receivedMessages),
 		SentBytes:         atomic.LoadUint64(&t.stats.sentBytes),
 		ReceivedBytes:     atomic.LoadUint64(&t.stats.receivedBytes),
+		WireSentBytes:     atomic.LoadUint64(&t.stats.wireSentBytes),
+		WireReceivedBytes: atomic.LoadUint64(&t.stats.wireReceivedBytes),
 	}
 }
 

@@ -245,3 +245,12 @@ func (p *HonestParty) Close() error {
 	}
 	return p.transport.Close()
 }
+
+// TransportStats returns a point-in-time transport snapshot for experiment
+// measurement. A zero snapshot is returned before network initialization.
+func (p *HonestParty) TransportStats() core.TransportStats {
+	if p.transport == nil {
+		return core.TransportStats{}
+	}
+	return p.transport.Stats()
+}
